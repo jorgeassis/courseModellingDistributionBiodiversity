@@ -1,8 +1,8 @@
-## Modelling the distribution of biodiversity under global change
+### Modelling the distribution of biodiversity under global change
 
-professor: Jorge Assis
-contact: jorgemfa@gmail.com
-code: github.com/jorgeassis
+professor: Jorge Assis<br>
+contact: jorgemfa@gmail.com<br>
+code: https://github.com/jorgeassis/<br>
 webpage: https://www.biodiversitydatascience.com
 
 ### Scope
@@ -17,27 +17,27 @@ The course is targeted to PhD students in the fields of marine biology, ecology,
 
 ### Sessions
 
-**Sessions T**
-S01. Course overview
-S02. Climate oscillations and distributional shifts of marine biodiversity
-S03. Principles of Geographic Information Systems
-S04. Biological and environmental data for macroecology
-S05. Ecological niches and geographic distributions, a perspective from macroecology
-S06. Principles of Ecological Niche Modelling
-S07. Potential applications of Ecological Niche Modelling
-S08. Model fitting and transferability in space and time
-S09. Evaluating predictive performance and setting decision thresholds
+**Sessions T**<br>
+S01. Course overview<br>
+S02. Climate oscillations and distributional shifts of marine biodiversity<br>
+S03. Principles of Geographic Information Systems<br>
+S04. Biological and environmental data for macroecology<br>
+S05. Ecological niches and geographic distributions, a perspective from macroecology<br>
+S06. Principles of Ecological Niche Modelling<br>
+S07. Potential applications of Ecological Niche Modelling<br>
+S08. Model fitting and transferability in space and time<br>
+S09. Evaluating predictive performance and setting decision thresholds<br>
 S10. Improving transferability of Ecological Niche Modelling
 
-**Sessions P**
-S01. Brief recap of R basics
-S02. Basic programming elements
-S03. R as a Geographic Information System
-S05. Biodiversity data in R
-S06. Environmental data in R
-S07. Developing Ecological Niche Models
-S08. Predictive performance in Ecological Modelling
-S09. Data-driven hyperparameter and variable selection
+**Sessions P**<br>
+S01. Brief recap of R basics<br>
+S02. Basic programming elements<br>
+S03. R as a Geographic Information System<br>
+S05. Biodiversity data in R<br>
+S06. Environmental data in R<br>
+S07. Developing Ecological Niche Models<br>
+S08. Predictive performance in Ecological Modelling<br>
+S09. Data-driven hyperparameter and variable selection<br>
 
 ### Learning outcomes
 
@@ -84,7 +84,7 @@ To successfully conduct the individual research study, the students must perform
 - Gather biodiversity data for one or more marine species;
 - Gather environmental data to model the distribution of one or more marine species;
 - Model the distribution of one or more marine species;
-- Write an R Markdown report ([check template]('Code recipes/')) with the following format:
+- Write an R Markdown report ([check template](/Code recipes/)) with the following format:
 	Abstract: What was done in a nutshell (Max. 250 words);
 	Introduction: Brief statement on what is the problem (Max. 500 words);
 	Methods: Brief statement on how the problem was solved (Max. 500 words);
