@@ -18,26 +18,27 @@ The course is targeted to PhD students in the fields of marine biology, ecology,
 ### Sessions
 
 **Sessions T**<br>
-S01. Course overview<br>
-S02. Climate oscillations and distributional shifts of marine biodiversity<br>
-S03. Principles of Geographic Information Systems<br>
-S04. Biological and environmental data for macroecology<br>
-S05. Ecological niches and geographic distributions, a perspective from macroecology<br>
-S06. Principles of Ecological Niche Modelling<br>
-S07. Potential applications of Ecological Niche Modelling<br>
-S08. Model fitting and transferability in space and time<br>
-S09. Evaluating predictive performance and setting decision thresholds<br>
-S10. Improving transferability of Ecological Niche Modelling
+T1 Ecological niches and geographic distributions, a perspective from macroecology<br>
+T2 Climate oscillations and distributional shifts of marine biodiversity<br>
+T3 Projected impacts of future climate change on marine biodiversity<br>
+T4 Principles of Geographic Information Systems<br>
+T5 Principles of species distribution modeling<br>
+T6 Potential applications of SDM<br>
+T7 Biological and environmental data for SDM<br>
+T8 Evaluating predictive performance and setting decision thresholds<br>
+T9 Improving transferability of SDM<br>
+T10 Climate change ecology informing conservation<br>
+T11 FAIR Research
 
 **Sessions P**<br>
-S01. Brief recap of R basics<br>
-S02. Basic programming elements<br>
-S03. R as a Geographic Information System<br>
-S05. Biodiversity data in R<br>
-S06. Environmental data in R<br>
-S07. Developing Ecological Niche Models<br>
-S08. Predictive performance in Ecological Modelling<br>
-S09. Data-driven hyperparameter and variable selection<br>
+P1 Introduction to R and RStudio<br>
+P2 R as a Geographic Information System<br>
+P3 Downloading and managing biodiversity data in R<br>
+P4 Downloading and managing environmental data in <br>
+P5 Developing Species Distribution Models in R<br>
+P6 Performance of Species Distribution Models<br>
+P7 Data-driven hyperparameter and monotonic constrains<br>
+P8 The diversity of algorithms and ensembles<br>
 
 ### Learning outcomes
 
