@@ -1,0 +1,9 @@
+# load libraries
+library(bDSSDMTools)
+library(biooracler)
+
+variables <- list(var1 = c("thetao", "ltmax", "depthsurf"))
+
+# download present-day layer
+temperaturePresent <- download_multiple_layers(variables = variables, experiment = c("baseline"),
+                                               decade = c(2010), longitude = c(-15, 45), latitude = c(25, 50))

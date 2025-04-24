@@ -1,0 +1,11 @@
+# open a raster layer
+temperatureLayer <- rast("../Data/Raster data/Present Surface OceanTemperature LtMax.tif")
+
+# from-to-becomes matrix
+rclmat <- data.frame(from = c(-Inf, 12, 25),
+                     to = c(12, 25, Inf),
+                     becomes = c(0, 1, 0))
+
+temperatureLayerReclass <- classify(temperatureLayer, rclmat)
+
+plot(temperatureLayerReclass)
