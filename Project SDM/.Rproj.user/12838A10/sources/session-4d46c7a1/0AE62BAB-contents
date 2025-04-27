@@ -1,0 +1,13 @@
+
+
+hyperparametersList <- list( learning.rate = c(0.01, 0.001), 
+                             interaction.depth = c(3, 4), 
+                             n.trees = c(500, 1000) )
+
+
+
+# Make hyperparameter list
+hyperparametersList <- list(learning.rate = c(0.01, 0.001), 
+                            interaction.depth = c(3,4), 
+                            n.trees = seq(500, 1000))
+
