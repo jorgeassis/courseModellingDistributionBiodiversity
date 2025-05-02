@@ -1,26 +1,26 @@
 {
-    "id": "E276756B",
-    "path": "~/Dropbox/Tutoring/Classes & Courses/Modelling the distribution of biodiversity under global change/Git/Code recipes/codeRecipe 01.R",
+    "id": "D508CDAF",
+    "path": "~/Dropbox/Tutoring/Classes & Courses/Modelling the distribution of biodiversity under global change/Markdown/Session-P-S04-WorldClim.R",
     "project_path": null,
     "type": "r_source",
-    "hash": "0",
+    "hash": "1726586912",
     "contents": "",
     "dirty": false,
-    "created": 1745572601583.0,
+    "created": 1745833212031.0,
     "source_on_save": false,
     "relative_order": 2,
     "properties": {
         "source_window_id": "",
         "Source": "Source",
-        "cursorPosition": "8,0",
-        "scrollLine": "0"
+        "cursorPosition": "19,0",
+        "scrollLine": "4"
     },
     "folds": "",
-    "lastKnownWriteTime": 1745580882,
+    "lastKnownWriteTime": 1745492444,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1745580882675,
+    "last_content_update": 1745492444,
     "read_only": false,
     "read_only_alternatives": []
 }

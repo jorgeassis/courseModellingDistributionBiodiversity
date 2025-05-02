@@ -1,4 +1,10 @@
 
+library(terra)
+library(ecospat)
+library(dismo)
+library(nicheROVER)
+library(ade4)
+
 meanNicheOverlap <- function(data,nsamples,colors.sp) {
   
   species.par <- tapply(1:nrow(data), data$species, function(ii) niw.post(nsamples = nsamples, X = data[ii, 2:ncol(data)]))
@@ -37,7 +43,6 @@ meanNicheOverlap <- function(data,nsamples,colors.sp) {
   overlap.plot(over.stat, col = clrs, mean.cred.col = "turquoise", equal.axis = TRUE, xlab = "Overlap Probability (%) -- Niche Region Size: 95%")
   
 }
-
 
 plotNicheOverlap <- function(data,nsamples) {
   
@@ -85,8 +90,6 @@ prepareDataNicheOverlap <- function(environment,rasterSPA,rasterSPB) {
   return(data)
   
 }
-
-
 
 prepareDataNicheOverlap2 <- function(environment,rasterSPA,rasterSPB) {
     

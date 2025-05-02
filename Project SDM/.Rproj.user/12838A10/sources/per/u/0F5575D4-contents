@@ -1,0 +1,11 @@
+
+recordsObis <- getExternalDataObis(taxa="Laminaria ochroleuca",getCitation=TRUE)
+
+recordsObis <- recordsObis[,c("Lon","Lat")]
+
+bathymetry <- rast("../Data/Raster data/Bathymetry.tif")
+overLand <- extract(bathymetry, recordsObis)
+
+recordsObis <- recordsObis[! is.na( overLand$Bathymetry ) ,]
+
+

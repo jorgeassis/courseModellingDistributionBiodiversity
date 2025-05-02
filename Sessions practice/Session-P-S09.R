@@ -1,10 +1,4 @@
 
-library(terra)
-library(ecospat)
-library(dismo)
-library(nicheROVER)
-library(ade4)
-
 source("../Sessions practice/Session-P-S09-functions.R")
 
 # load environmental predictors
@@ -20,13 +14,13 @@ speciesB <- rast("../Data/Raster data/Laminaria ochroleuca Suitability.tif")
 names(speciesA) <- "Laminaria hyperborea"
 names(speciesB) <- "Laminaria ochroleuca"
 
-plot(speciesA, col=c("Yellow","Black"))
-plot(speciesB, col=c("Yellow","Black"))
+plot(speciesA, col=c("Red","Black"))
+plot(speciesB, col=c("Red","Black"))
 
 # Computes different metrics from a probabilistic method for quantifying n-dimensional niches
 
 data <- prepareDataNicheOverlap(environment,speciesA,speciesB)
-repetitions <- 100
+repetitions <- 100 # 1000 randomizations
 colorsGroups <- c("grey", "red")
 
 # plot niche overlap
