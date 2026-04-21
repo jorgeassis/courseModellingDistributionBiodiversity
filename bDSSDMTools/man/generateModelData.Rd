@@ -6,19 +6,18 @@
 \usage{
 generateModelData(
   records,
-  envConditions,
+  environmentalLayers,
   method = "random",
-  kFolds = NULL,
   proportionTrain = 0.7,
   proportionTest = 0.15,
   proportionVal = 0.15,
+  bootstrapRounds = 6,
   paMinimum = 100,
-  paRounds = 10,
-  paRatio = 1
+  paRatio = 1,
+  sacDist = NULL
 )
 }
 \description{
-Prepares data for model training and evaluation by cleaning records,
 splitting data into train/validation/test sets using either random folds or
 spatial blocks, optionally creating multiple data replicates by re-sampling
 absences (useful when presence data is scarce), extracting environmental

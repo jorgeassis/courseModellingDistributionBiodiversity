@@ -14,12 +14,12 @@
 #'   no legend guide-box is found or the identified legend is empty.
 #'
 #' @keywords internal
-#' @importFrom ggplot2 is.ggplot ggplotGrob
+#' @importFrom ggplot2 is_ggplot ggplotGrob
 #' @importFrom grid is.grob
 #'
 get_plot_legend <- function(plot, legend = NULL) {
   # Check if input is ggplot or grob
-  if (ggplot2::is.ggplot(plot)) {
+  if (ggplot2::is_ggplot(plot)) {
     gt <- ggplot2::ggplotGrob(plot)
   } else {
     if (grid::is.grob(plot)) {

@@ -8,7 +8,8 @@ trainModel(
   modelData,
   algorithm = "brt",
   hyperparameters = NULL,
-  monotonicity = NULL
+  monotonicity = NULL,
+  reclassCriteria = "minimumTrain95"
 )
 }
 \description{
