@@ -10,7 +10,7 @@
 #' @importFrom stats complete.cases kmeans dist sd na.omit quantile glm binomial lm AIC var
 #' @importFrom blockCV cv_spatial
 #' @importFrom tidyterra geom_spatvector
-#' @importFrom ggplot2 ggplot aes geom_point scale_color_manual labs theme_minimal coord_equal theme element_rect element_blank ggplotGrob is_ggplot
+#' @importFrom ggplot2 ggplot coord_sf aes geom_point scale_color_manual labs theme_minimal coord_equal theme element_rect element_blank ggplotGrob is_ggplot
 #' @importFrom cowplot plot_grid
 #' @importFrom methods is
 #' @importFrom grid is.grob zeroGrob # Needed by internal get_plot_legend
