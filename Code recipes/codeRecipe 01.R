@@ -206,7 +206,7 @@ ggplot() +
 finalRecords <- data.frame( Lon = geom(records)[,c("x")] , Lat = geom(records)[,c("y")] , records )
 
 # save data frame to external file
-write.table(finalRecords,file="myRecords2.csv",sep=";")
+write.table(finalRecords,file="myRecords.csv",sep=";")
 
 ## -----------------------------------------------------------------------------------------------
 ## -----------------------------------------------------------------------------------------------

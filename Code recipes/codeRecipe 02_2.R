@@ -76,19 +76,21 @@ library(bDSSDMTools)
 # open data
 
 # read occurrence records (presences) and transform to spatial object
-presences <- read.table('../Data/Text delimited/myRecords2.csv',sep=';',header=TRUE)
+presences <- read.table('../Data/Text delimited/myRecords.csv',sep=';',header=TRUE)
 presences <- vect(presences, geom=c("Lon","Lat"))
 
 # download layers for present conditions
 variables <- list(var1 = c("thetao","ltmax","depthmean"),
                   var2 = c("thetao","ltmin","depthmean"),
-                  var3 = c("kdpar_mean","ltmax","depthsurf"))
+                  var4 = c("o2","ltmin","depthmean"),
+                  var5 = c("phyc","ltmin","depthmean"),
+                  var6 = c("sws","ltmin","depthmean"))
 
-environmentalLayers <- download_multiple_layers(variables=variables, experiment="baseline", decade=2010 , longitude = c(-45,45) , latitude = c(20,70))
+environmentalLayers <- download_multiple_layers(variables=variables, experiment="baseline", decade=2010 , longitude = c(-12,33) , latitude = c(32,46))
 
 # change names for simplicity
 names(environmentalLayers)
-names(environmentalLayers) <- c("TemperatureMax","TemperatureMin","LightAttenuation")
+names(environmentalLayers) <- c("TemperatureMax","TemperatureMin","Oxygen","Productivity","CurrentVelocity")
 
 # plot layers
 plot(environmentalLayers, axes=TRUE)
@@ -100,7 +102,8 @@ plot(environmentalLayers, axes=TRUE)
 myStudyRegion <- studyRegion(rasterLayers=environmentalLayers, # SpatRaster of layers
                              presences=presences, # presence records
                              distanceThreshold=300000, # distance from records in meters
-                             intertidalLayer = "../Data/Raster data/CoastLine.tif") # intertidal layer
+                             bathymetryLayer = "../Data/Raster data/Bathymetry.tif", # bathymetry layer
+                             depthPref=c(-15,-250)) # known vertical distribution
 
 # inspect the study region layer
 plot(myStudyRegion, col="#979797", axes=TRUE, legend=FALSE)
@@ -117,6 +120,10 @@ correlations <- getCorrPlot(environmentalLayers)
 correlations$correlationPairs
 correlations$plot
 vifstep(environmentalLayers, th=10)
+
+# subset environmentalLayers if needed
+
+environmentalLayers <- subset(environmentalLayers, c("TemperatureMax","TemperatureMin","Oxygen","Productivity","CurrentVelocity"))
 
 # Inspect spatial autocorrelation in the layers
 sacAnalysis <- sac(environmentalLayers)
@@ -157,132 +164,84 @@ hyperparametersList <- list(learning.rate=c(0.1,0.01,0.001) ,
                             n.trees=seq(100,1000,by=100))
 
 names(environmentalLayers)
-monotonicConstrains <- c("TemperatureMax" = -1 , "TemperatureMin" = 1, "LightAttenuation" = -1)
+monotonicConstrains <- c("TemperatureMax" = -1 , "TemperatureMin" = 1, "Oxygen" = 1, "Productivity" = 1, "CurrentVelocity" = 1)
 
 # fit brt model
-model <- trainModel(modelData, algorithm ="brt", hyperparameters=hyperparametersList, monotonicity=monotonicConstrains)
+model_brt <- trainModel(modelData, algorithm ="brt", hyperparameters=hyperparametersList, monotonicity=monotonicConstrains)
 
 # inspect hyperparameter combination selected per fold
-model$hyperparameters
+model_brt$hyperparameters
 
 # inspect model performance
-model$performance
-
-# inspect relative contribution of variables
-modelVarContrib <- variableContribution(model,rasterLayers=environmentalLayers)
-modelVarContrib$dataFrame
-modelVarContrib$plot
-
-# inspect response curves of variables
-partialPlotTemperature <- partialPlot(model,modelData,variablePlot="TemperatureMax")
-partialPlotTemperature$tippingPoints
-partialPlotTemperature$partialPlot
-
-partialPlotTemperature <- partialPlot(model,modelData,variablePlot="TemperatureMin")
-partialPlotTemperature$tippingPoints
-partialPlotTemperature$partialPlot
-
-partialPlotTemperature <- partialPlot(model,modelData,variablePlot="LightAttenuation")
-partialPlotTemperature$tippingPoints
-partialPlotTemperature$partialPlot
+model_brt$performance
 
 ## -----------------------
-# predict distribution
+# fit a xgboost model using hyperparameter tuning and monotonic constrains
 
-# predict the distribution with the model over a raster stack
-prediction <- predictModel(model=model,newData=environmentalLayers)
+# define hyperparameters add monotonic constrains
+hyperparametersList <- list(shrinkage = c(0.1, 0.01, 0.001),
+                            depth = c(2, 3, 4),
+                            rounds = c(10,50, 100),
+                            min_split_loss = c(0.1, 0.25, 0.5, 1))
 
-probabilityRaster <- prediction$rasterLayer
-uncertaintyRaster <- prediction$rasterLayerSD
+names(environmentalLayers)
+monotonicConstrains <- c("TemperatureMax" = -1 , "TemperatureMin" = 1, "Oxygen" = 1, "Productivity" = 1, "CurrentVelocity" = 1)
 
+# fit brt model
+model_xgboost <- trainModel(modelData, algorithm ="xgboost", hyperparameters=hyperparametersList, monotonicity=monotonicConstrains)
+
+# inspect hyperparameter combination selected per fold
+model_xgboost$hyperparameters
+
+# inspect model performance
+model_xgboost$performance
+
+## -----------------------
+# fit a maxent model using hyperparameter tuning
+
+# define hyperparameters add monotonic constrains
+hyperparametersList <- list(betamultiplier = c(0.5, 1, 5, 10, 25),
+                            feature = c("ht", "lp", "lq", "tc", "th", "h", "l", "q", "p", "t"))
+
+# fit brt model
+model_maxent <- trainModel(modelData, algorithm ="maxent", hyperparameters=hyperparametersList)
+
+# inspect hyperparameter combination selected per fold
+model_maxent$hyperparameters
+
+# inspect model performance
+model_maxent$performance
+
+## -----------------------
+# fit a glm model
+
+# fit brt model
+model_glm <- trainModel(modelData, algorithm ="glm")
+
+# inspect hyperparameter combination selected per fold
+model_glm$hyperparameters
+
+# inspect model performance
+model_glm$performance
+
+## -----------------------
+# ensemble algorithms
+
+prediction_brt <- predictModel(model=model_brt,newData=environmentalLayers)
+prediction_brt <- prediction_brt$rasterLayer
+prediction_xgboost <- predictModel(model=model_xgboost,newData=environmentalLayers)
+prediction_xgboost <- prediction_xgboost$rasterLayer
+prediction_maxent <- predictModel(model=model_maxent,newData=environmentalLayers)
+prediction_maxent <- prediction_maxent$rasterLayer
+prediction_glm <- predictModel(model=model_glm,newData=environmentalLayers)
+prediction_glm <- prediction_glm$rasterLayer
+
+probabilityRaster <- app(c(prediction_brt, prediction_xgboost, prediction_maxent, prediction_glm), fun=mean)
+uncertaintyRaster <- app(c(prediction_brt, prediction_xgboost, prediction_maxent, prediction_glm), fun=sd)
+  
 # map the predicted distribution
 plot(probabilityRaster, main="Predicted species distribution",col = rev(topo.colors(100)))
 plot(uncertaintyRaster, main="Uncertainty of predicted species distribution",col = rev(topo.colors(100)))
-
-# reclass the predicted distribution into binary presence/absence using the threshold that maximizes TSS
-observed <- records$PA
-predicted <- extract(probabilityRaster,records, ID=FALSE)[,1]
-modelPerformance(observed,predicted,index="minimumTrain90")
-
-threshold <- 0.50233
-rclmat <- data.frame(from=c(0, threshold), to=c(threshold, 1), becomes=c(0,1))
-rclmat
-
-predictionPresentReclass <- classify(prediction$rasterLayer, rclmat)
-plot(predictionPresentReclass, main="Predicted species distribution",col = c("#c3c3bdff", "#061b2eff"))
-
-## -----------------------
-# model transferability
-
-# download layers for end-of-century conditions
-environmentalLayersSSP119 <- download_multiple_layers(variables=variables, experiment=c("ssp119"), decade=c(2090), longitude = c(-45,45) , latitude = c(20,70))
-environmentalLayersSSP245 <- download_multiple_layers(variables=variables, experiment=c("ssp245"), decade=c(2090), longitude = c(-45,45) , latitude = c(20,70))
-
-# crop and mask the environmental layers to the extent of the study region
-environmentalLayersSSP119 <- crop(environmentalLayersSSP119, myStudyRegion)
-environmentalLayersSSP119 <- mask(environmentalLayersSSP119, myStudyRegion)
-
-environmentalLayersSSP245 <- crop(environmentalLayersSSP245, myStudyRegion)
-environmentalLayersSSP245 <- mask(environmentalLayersSSP245, myStudyRegion)
-
-# redirect the names of the layers
-names(environmentalLayersSSP119) <- c("TemperatureMax","TemperatureMin")
-names(environmentalLayersSSP245) <- c("TemperatureMax","TemperatureMin")
-
-# plot the masked environmental layers
-plot(environmentalLayersSSP119, axes=TRUE)
-plot(environmentalLayersSSP245, axes=TRUE)
-
-environmentalLayersSSP119 <- c(environmentalLayersSSP119,subset(environmentalLayers,c("LightAttenuation")))
-environmentalLayersSSP245 <- c(environmentalLayersSSP245,subset(environmentalLayers,c("LightAttenuation")))
-
-# Multivariate environmental similarity surfaces for extrapolation detection
-mess_raster <- mess(stack(environmentalLayersSSP245), as.data.frame(environmentalLayers))
-mess_raster <- rast(mess_raster)
-mess_raster <- mask(mess_raster, myStudyRegion)
-plot(mess_raster < 0)
-
-# transfer the distribution model
-predictionSSP119 <- predictModel(model=model,newData=environmentalLayersSSP119)
-predictionSSP245 <- predictModel(model=model,newData=environmentalLayersSSP245)
-
-# For two plots stacked vertically, we want 3 rows, 1 column.
-par(mfrow = c(3, 1))
-par(mar = c(4, 4, 2, 1))
-plot(prediction$rasterLayer, main="Present-day distribution",col = rev(topo.colors(100)))
-plot(predictionSSP119$rasterLayer, main="End-of-century distribution (SSP1-1.9)",col = rev(topo.colors(100)))
-plot(predictionSSP245$rasterLayer, main="End-of-century distribution (SSP2-4.5)",col = rev(topo.colors(100)))
-dev.off()
-
-predictionDiffSSP119 <- predictionSSP119$rasterLayer - prediction$rasterLayer
-predictionDiffSSP245 <- predictionSSP245$rasterLayer - prediction$rasterLayer
-
-# For two plots stacked vertically, we want 3 rows, 1 column.
-par(mfrow = c(3, 1))
-par(mar = c(4, 4, 2, 1))
-plot(prediction$rasterLayer, main="Present-day distribution",col = rev(topo.colors(100)))
-plot(predictionDiffSSP119, main="End-of-century difference in suitability (SSP1-1.9)",col = rev(topo.colors(100)))
-plot(predictionDiffSSP245, main="End-of-century difference in suitability (SSP2-4.5)",col = rev(topo.colors(100)))
-dev.off()
-
-predictionSSP119Reclass <- classify(predictionSSP119$rasterLayer, rclmat)
-predictionSSP245Reclass <- classify(predictionSSP245$rasterLayer, rclmat)
-
-par(mfrow = c(3, 1))
-par(mar = c(4, 4, 2, 1))
-plot(predictionPresentReclass, main="Present-day distribution",col = c("#E1C177", "#043259"))
-plot(predictionSSP119Reclass, main="End-of-century distribution (SSP1-1.9)",col = c("#E1C177", "#043259"))
-plot(predictionSSP245Reclass, main="End-of-century distribution (SSP2-4.5)",col = c("#E1C177", "#043259"))
-dev.off()
-
-## -----------------------
-# export final predictions
-
-# save the raster layers to external files
-
-writeRaster(predictionPresentReclass, filename="myFile1.tif", format="GTiff", overwrite=TRUE)
-writeRaster(predictionDiffSSP119, filename="myFile2.tif", format="GTiff", overwrite=TRUE)
-writeRaster(predictionDiffSSP245, filename="myFile3.tif", format="GTiff", overwrite=TRUE)
 
 ## -----------------------------------------------------------------------------------------------
 ## -----------------------------------------------------------------------------------------------

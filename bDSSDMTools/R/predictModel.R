@@ -47,13 +47,13 @@ predictModel <- function(model,newData) {
       prediction <- predict(model.j,newData, type="response")[,1]
     }
 
-    if(algorithmType == "xgb.Booster") {
-      newData <- newData[model.j$feature_names]
-      newData.x = xgb.DMatrix(data = data.matrix(newData[,setdiff(names(newData),c("PA"))]),  nthread = 1)
-      prediction <- predict(model.j,newData.x, type="response")
+    if( "xgb.Booster" %in% algorithmType | "xgboost" %in% algorithmType ) {
+      #newData <- newData[model.j$feature_names]
+      #newData.x = xgb.DMatrix(data = data.matrix(newData[,setdiff(names(newData),c("PA"))]),  nthread = 1)
+      prediction <- predict(model.j,newData, type="response")
     }
 
-    if( algorithmType != "maxnet" & algorithmType != "glm" & algorithmType != "gbm" & algorithmType != "mboost" & algorithmType != "xgb.Booster"  ) {
+    if( algorithmType != "maxnet" & algorithmType != "glm" & algorithmType != "gbm" & algorithmType != "mboost" & (! "xgb.Booster" %in% algorithmType & ! "xgboost" %in% algorithmType)  ) {
       stop("Error :: 032")
     }
 

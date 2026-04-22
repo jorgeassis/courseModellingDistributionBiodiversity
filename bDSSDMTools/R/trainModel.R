@@ -36,7 +36,7 @@ trainModel <- function(modelData, algorithm ="brt", hyperparameters=NULL, monoto
     }
 
     if( algorithm == "xgboost" ) {
-      hyperparameters.grid <- expand.grid(shrinkage=0.1 , gamma=1, interaction.depth=3, rounds=50)
+      hyperparameters.grid <- expand.grid(shrinkage=0.1 , min_split_loss=1, interaction.depth=3, rounds=50)
     }
 
     if( algorithm == "maxent" ) {
@@ -82,8 +82,8 @@ trainModel <- function(modelData, algorithm ="brt", hyperparameters=NULL, monoto
       if( ! "shrinkage" %in% names(hyperparameters.grid) ) {
         hyperparameters.grid[,"shrinkage"] <- 0.1
       }
-      if( ! "gamma" %in% names(hyperparameters.grid) ) {
-        hyperparameters.grid[,"gamma"] <- 1
+      if( ! "min_split_loss" %in% names(hyperparameters.grid) ) {
+        hyperparameters.grid[,"min_split_loss"] <- 1
       }
       if( ! "interaction.depth" %in% names(hyperparameters.grid) ) {
         hyperparameters.grid[,"interaction.depth"] <- 3
@@ -152,6 +152,8 @@ trainModel <- function(modelData, algorithm ="brt", hyperparameters=NULL, monoto
 
     for( m in 1:nrow(hyperparameters.grid)) {
 
+      if(exists("model.m")) { rm("model.m") }
+
       if( algorithm == "glm" ) {
 
         model.m <- glm(PA ~ ., data=trainData, family=binomial)
@@ -179,7 +181,7 @@ trainModel <- function(modelData, algorithm ="brt", hyperparameters=NULL, monoto
 
       if( algorithm == "maxent" ) {
 
-        tryCatch( model.m <- maxnet(p=trainData$PA,
+        tryCatch( model.m <- maxnet::maxnet(p=trainData$PA,
                                     data=trainData[,which(names(trainData) != "PA")],
                                     regmult=hyperparameters.grid[m,"betamultiplier"],
                                     classes=hyperparameters.grid[m,"feature"]), error=function(e) { Error <<- TRUE })
@@ -192,18 +194,21 @@ trainModel <- function(modelData, algorithm ="brt", hyperparameters=NULL, monoto
       if( algorithm == "adaboost" ) { stop("!")}
 
       if(algorithm == "xgboost") {
-        trainData.x <- xgb.DMatrix(data = data.matrix(trainData[,-which(names(trainData) == "PA")]), label = trainData[,which(names(trainData) == "PA")], nthread = 1)
-        model.m <- xgboost(data = trainData.x, monotone_constraints=monotonicity.m[names(trainData[,which(colnames(trainData) != "PA")])],
-                            max_depth = hyperparameters.grid[m,"interaction.depth"],
-                            gamma=hyperparameters.grid[m,"gamma"],
-                            nrounds=hyperparameters.grid[m,"rounds"],
-                            verbose = 0, nthread = 1, objective="binary:logistic")
+
+        trainData.x <- xgboost::xgb.DMatrix(data = data.matrix(trainData[,-which(names(trainData) == "PA")]), label = trainData[,which(names(trainData) == "PA")], nthread = 1)
+        model.m <- xgboost::xgboost(x = data.matrix(trainData[,-which(names(trainData) == "PA")]),
+                                    y = as.factor(trainData$PA),
+                                    monotone_constraints=monotonicity.m[names(trainData[,which(colnames(trainData) != "PA")])],
+                                    max_depth = hyperparameters.grid[m,"interaction.depth"],
+                                    min_split_loss=hyperparameters.grid[m,"min_split_loss"],
+                                    nrounds=hyperparameters.grid[m,"rounds"],
+                                    nthread = 1, objective="binary:logistic")
 
         newData.x <- trainData[model.m$feature_names]
-        newData.x = xgb.DMatrix(data = data.matrix(newData.x),  nthread = 1)
-        pred.train <- predict(model.m,newData.x, type="response")
-        newData.x = xgb.DMatrix(data = data.matrix(validationData[,setdiff(names(validationData),c("PA"))]),  nthread = 1)
-        pred.validation <- predict(model.m,newData.x, type="response")
+        newData.x =  xgboost::xgb.DMatrix(data = data.matrix(newData.x),  nthread = 1)
+        pred.train <- predict(model.m,trainData, type="response")
+        newData.x =  xgboost::xgb.DMatrix(data = data.matrix(validationData[,setdiff(names(validationData),c("PA"))]),  nthread = 1)
+        pred.validation <- predict(model.m,validationData, type="response")
 
       }
 
@@ -246,15 +251,17 @@ trainModel <- function(modelData, algorithm ="brt", hyperparameters=NULL, monoto
     if(algorithm == "xgboost") {
 
       trainData.x = rbind(trainData,validationData)
-      trainData.x <- xgb.DMatrix(data = data.matrix(trainData.x[,-which(names(trainData.x) == "PA")]), label = trainData.x[,which(names(trainData.x) == "PA")], nthread = 1)
-      model.m <- xgboost(data = trainData.x, monotone_constraints=monotonicity.m[names(trainData[,which(colnames(trainData) != "PA")])],
+      #trainData.x <- xgb.DMatrix(data = data.matrix(trainData.x[,-which(names(trainData.x) == "PA")]), label = trainData.x[,which(names(trainData.x) == "PA")], nthread = 1)
+      model.m <- xgboost::xgboost(x = data.matrix(trainData.x[,-which(names(trainData.x) == "PA")]),
+                                    y = as.factor(trainData.x$PA),
+        monotone_constraints=monotonicity.m[names(trainData.x[,which(colnames(trainData.x) != "PA")])],
                           max_depth = hyperparameters.grid[m,"interaction.depth"],
-                          gamma=hyperparameters.grid[m,"gamma"],
+                          min_split_loss=hyperparameters.grid[m,"min_split_loss"],
                           nrounds=hyperparameters.grid[m,"rounds"],
-                          verbose = 0, nthread = 1, objective="binary:logistic")
-      newData.x <- testData[model.m$feature_names]
-      newData.x = xgb.DMatrix(data = data.matrix(newData.x),  nthread = 1)
-      pred.test <- predict(model.m,newData.x, type="response")
+                          nthread = 1, objective="binary:logistic")
+      #newData.x <- testData[model.m$feature_names]
+      #newData.x = xgb.DMatrix(data = data.matrix(newData.x),  nthread = 1)
+      pred.test <- predict(model.m,testData, type="response")
 
     }
 
@@ -276,7 +283,7 @@ trainModel <- function(modelData, algorithm ="brt", hyperparameters=NULL, monoto
 
     if( algorithm == "maxent" ) {
 
-      model.m <- maxnet(p=rbind(trainData,validationData)$PA,
+      model.m <- maxnet::maxnet(p=rbind(trainData,validationData)$PA,
                         data=rbind(trainData,validationData)[,which(names(trainData) != "PA")],
                         regmult=hyperparameters.grid[m,"betamultiplier"],
                         classes=hyperparameters.grid[m,"feature"])
