@@ -10,7 +10,7 @@
 ## -----------------------------------------------------------------------------------------------
 ## -----------------------------------------------------------------------------------------------
 
-## Recipe 1: Download and Clean Biodiversity Records
+## Recipe 1: Download and Clean Biodiversity Records. Integrate with text delimented data.
 ## Collect species occurrences from GBIF and OBIS, clean and filter the data, visualize distributions, and export cleaned records.
 
 # 1. Set up the project environment
@@ -56,24 +56,41 @@
 # File -> New file...
 # File -> Save As... (e.g., SDM.R)
 
+# reset the environment
+closeAllConnections()
+rm(list=ls())
+gc(reset=TRUE)
+
 # Load main functions
 library(terra)
 library(leaflet)
 library(mapedit)
+library(plyr)
 library(bDSSDMTools)
 
 ## -----------------------
 # 01. get records
 
 # get records from external databases
-recordsObis <- getExternalDataObis(taxa="Laminaria ochroleuca",getCitation=TRUE)
-recordsGbif <- getExternalDataGbif(taxa="Laminaria ochroleuca",getCitation=TRUE)
+recordsObis <- getExternalDataObis(taxa="Paramuricea clavata",getCitation=TRUE)
+recordsGbif <- getExternalDataGbif(taxa="Paramuricea clavata",getCitation=TRUE)
 
-# combine records
+# combine records from external databases
+names(recordsObis)
+names(recordsGbif)
 records <- rbind(recordsObis, recordsGbif)
 
 # Plot the records
 plot( records[,c("Lon","Lat")], col="Black" , pch= 19, cex=0.5)
+
+# get records from file
+recordsFile <- read.table("../Data/Text delimited/species_presence_records.csv", header=TRUE, sep=";", dec=".")
+
+# combine records from external databases with records from file
+names(recordsFile)
+names(records)
+
+records <- rbind.fill(records, recordsFile)
 
 ## -----------------------
 # 02. remove NAs and duplicated records
@@ -100,6 +117,15 @@ landmass <- vect("../Data/Vector data/Landmass/landmass.shp")
 plot(landmass, main="Species occurrence records", col='Gray', border='Gray', axes=TRUE)
 plot( records, col="Black" , pch= 19, cex=0.5, add=TRUE)
 
+# Keep only points NOT on land
+nrow(records)
+records <- erase(records, landmass)
+nrow(records)
+
+# plot the landmass and the records
+plot(landmass, main="Species occurrence records", col='Gray', border='Gray', axes=TRUE)
+plot( records, col="Black" , pch= 19, cex=0.5, add=TRUE)
+
 ## -----------------------
 # 04. confirm that all records belong to the know geographic distribution of the species
 
@@ -122,6 +148,10 @@ myRegion <- vect(myRegion)
 # intersect the records with the region
 records <- intersect(records, myRegion)
 
+# inspect the distribution of the species
+plot(landmass, main = "Global landmass", col="gray", border="gray", axes = TRUE)
+plot( records, col="black" , pch= 19, cex=0.5, add=TRUE)
+
 ## -----------------------
 # 05. confirm that all records belong to the know vertical distribution of the species
 
@@ -136,8 +166,8 @@ depthDistribution <- extract(bathymetry, records)
 # plot the distribution of the depth records
 hist(depthDistribution$Bathymetry, breaks=500)
 
-# extract the depth values of the records (exmaple for 30 meters depth)
-records <- records[depthDistribution$Bathymetry > -30 & ! is.na(depthDistribution$Bathymetry),]
+# extract the depth values of the records (for 15-250 meters depth distribution)
+records <- records[depthDistribution$Bathymetry < -15 & depthDistribution$Bathymetry > -250 & ! is.na(depthDistribution$Bathymetry),]
 # extract the depth values of the records
 depthDistribution <- extract(bathymetry, records)
 # plot the distribution of the depth records
@@ -157,21 +187,26 @@ library(tidyterra)
 crs(records) <- crs(landmass)
 
 ggplot() +
-  geom_spatvector(data = landmass, fill = "#B9B8B0", colour = "#707070", size = 0.2) +
-  geom_spatvector(data = records, color = "#9A3B04") +
+  geom_spatvector(data = landmass, fill = "#d5d4d0ff", colour = "#abababff", size = 0.2) +
+  geom_spatvector(data = records, color = "#6d2801ff", size = 0.5) +
   scale_y_continuous(breaks = seq(-90,90, by=20)) +
   scale_x_continuous(breaks = seq(-180,180,by=20)) +
+  xlab("Longitude") + ylab("Latitude") + ggtitle("Clean distribution records")
+
+ggplot() +
+  geom_spatvector(data = landmass, fill = "#d5d4d0ff", colour = "#abababff", size = 0.2) +
+  geom_spatvector(data = records, color = "#6d2801ff", size = 0.5) +
+  scale_y_continuous(breaks = seq(-90,90, by=20), limits = c(25, 50)) +
+  scale_x_continuous(breaks = seq(-180,180,by=20), limits = c(-20, 40)) +
   xlab("Longitude") + ylab("Latitude") + ggtitle("Clean distribution records")
 
 ## -----------------------
 # 07. export final records
 
-finalRecords <- data.frame( Lon = geom(records)[,c("x")] ,
-                       Lat = geom(records)[,c("y")] ,
-                       records )
+finalRecords <- data.frame( Lon = geom(records)[,c("x")] , Lat = geom(records)[,c("y")] , records )
 
 # save data frame to external file
-write.table(records,file="Data/myFile.csv",sep=";")
+write.table(finalRecords,file="myRecords2.csv",sep=";")
 
 ## -----------------------------------------------------------------------------------------------
 ## -----------------------------------------------------------------------------------------------

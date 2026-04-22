@@ -100,7 +100,7 @@ sac <- function(environmentalLayers,num_sample=2500,autocorrelationClassDistance
   )
 
   plot1 <- ggplot(df, aes(x = range, y = reorder(variable, range))) +
-      geom_segment(aes(x = 0, xend = range, yend = variable),color = "#5aa0d6", size = 1.2) +
+      geom_segment(aes(x = 0, xend = range, yend = variable),color = "#5aa0d6", linewidth = 1.2) +
       geom_point(size = 3, color = "#5aa0d6") +
       geom_vline(xintercept = mean(range), linetype = "dashed", color = "red") +
       annotate("text", x = mean(range), y = 1, label = "Block size",

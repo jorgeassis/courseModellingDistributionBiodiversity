@@ -36,6 +36,10 @@ download_multiple_layers <- function(variables, experiment, decade, latitude=NUL
   combinations <- data.frame(t(data.frame(variables)),experiment, decade, stringsAsFactors = FALSE)
   combLayers <- NULL
 
+  if( sum(! combinations[,3] %in% c("depthsurf","depthmax","depthmean","depthmin")) > 0) { stop("Unrecognized realm in list") }
+  if( sum(! combinations[,4] %in% c("baseline","ssp119","ssp126","ssp245","ssp370","ssp460","ssp585")) > 0 ) { stop("Unrecognized experiment in list") }
+  if( sum(! combinations[,2] %in% c("ltmax","ltmin","mean","max","min","range")) > 0 ) { stop("Unrecognized predictor in list") }
+
   # -----------------------
 
   for(i in 1:nrow(combinations)) {
@@ -54,7 +58,11 @@ download_multiple_layers <- function(variables, experiment, decade, latitude=NUL
     if( nrow(datasetLayers.i) == 0 ) { next }
     if( nrow(datasetLayers.i) != 1 ) { stop("Error :: 001") }
 
-    time <- unlist(strsplit(datasetLayers.i$dataset_id, split = "_"))
+    var_name <- datasetLayers.i$dataset_id
+    var_name <- gsub("kdpar_mean","kdparmean",var_name)
+    var_name <- gsub("par_mean","parmean",var_name)
+
+    time <- unlist(strsplit(var_name, split = "_"))
     time <- as.numeric(time[3:4])
     time <- floor(time / 10 + 0.5) * 10
     time <- seq(time[1],time[2],by=10)
@@ -68,8 +76,17 @@ download_multiple_layers <- function(variables, experiment, decade, latitude=NUL
     myDir <- paste0(tempdir(),"/",sample(1:100000000000,1))
     if( ! dir.exists(myDir) ) { dir.create(myDir, recursive = TRUE) }
 
+    predictor_var <- paste0(sub("_.*", "", datasetLayers.i$dataset_id),"_",predictor)  
+
+    if( grepl("kdpar", predictor_var) ) {
+      predictor_var <- gsub("kdpar","kdpar_mean", predictor_var)
+    }
+    if( grepl("parmean", predictor_var) ) {
+      predictor_var <- gsub("par","par_mean", predictor_var)
+    }
+
     biooracler::download_layers(dataset_id=datasetLayers.i$dataset_id,
-                                variables = paste0(sub("_.*", "", datasetLayers.i$dataset_id),"_",predictor),
+                                variables = predictor_var,
                                 constraints = constraints,
                                 directory= myDir )
 

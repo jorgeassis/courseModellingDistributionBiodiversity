@@ -17,6 +17,24 @@
 
 generateModelData <- function(records, environmentalLayers, method="random", proportionTrain=0.7, proportionTest=0.15, proportionVal=0.15, bootstrapRounds = 6, paMinimum=100, paRatio=1, sacDist=NULL ) {
 
+  split_f <- function(data,target) {
+    split_data <- split(data, data$membership)
+    ranked_list <- lapply(split_data, function(group) {
+      shuffled_group <- group[sample(nrow(group)), , drop = FALSE]
+      shuffled_group$draw_rank <- seq_len(nrow(shuffled_group))
+      return(shuffled_group)
+    })
+    
+    ranked_df <- do.call(rbind, ranked_list)
+    rownames(ranked_df) <- NULL
+    
+    ranked_df <- ranked_df[sample(nrow(ranked_df)), , drop = FALSE]
+    sorted_df <- ranked_df[order(ranked_df$draw_rank), , drop = FALSE]
+    final_sample <- sorted_df[1:target, , drop = FALSE]
+    final_sample <- final_sample[, -which(names(final_sample) %in% c("draw_rank"))]
+    return(final_sample)
+  }
+  
   if(! "PA" %in% names(records)) { stop("Error :: Records must contain a column named 'PA'") }
   if( class(environmentalLayers)[1] != "SpatRaster") { stop("Error :: environmentalLayers must be a SpatRaster object") }
   if( class(records)[1] != "SpatVector") { stop("Error :: records must be a SpatVector object") }
@@ -181,4 +199,4 @@ generateModelData <- function(records, environmentalLayers, method="random", pro
 
   return(list(modelData=modelData,plotDatasets=plot2,summary=summary))
 
-  }
+}
