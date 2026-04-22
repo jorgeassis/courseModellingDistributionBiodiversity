@@ -9,6 +9,7 @@
 #' @importFrom terra SpatRaster SpatVector extract nlyr values `values<-` nrow ncol ncell subset crs `crs<-` ext rast project vect as.data.frame classify mask rasterize buffer trim complete.cases init xyFromCell relate is.related centroids geomtype `geomtype<-` `names<-` units `units<-` wrap unwrap deepcopy `ext<-` maths Compare Logic Arith `Arith,SpatRaster,SpatRaster-method` `Arith,SpatRaster,numeric-method` `Arith,numeric,SpatRaster-method` `Compare,SpatRaster,numeric-method` `Compare,SpatRaster,SpatRaster-method` `Compare,numeric,SpatRaster-method` `Logic,SpatRaster,logical-method` `Logic,SpatRaster,SpatRaster-method` `Logic,!SpatRaster-method` `subset,SpatRaster,numeric-method` `subset,SpatRaster,missing-method` `extract,SpatRaster,SpatVector-method` `extract,SpatRaster,matrix-method` `is.na,SpatRaster-method` `anyNA,SpatRaster-method`
 #' @importFrom stats complete.cases kmeans dist sd na.omit quantile glm binomial lm AIC var
 #' @importFrom blockCV cv_spatial
+#' @importFrom tidyterra geom_spatvector
 #' @importFrom ggplot2 ggplot aes geom_point scale_color_manual labs theme_minimal coord_equal theme element_rect element_blank ggplotGrob is_ggplot
 #' @importFrom cowplot plot_grid
 #' @importFrom methods is
