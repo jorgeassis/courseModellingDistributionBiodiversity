@@ -286,9 +286,9 @@ dev.off()
 
 # save the raster layers to external files
 
-writeRaster(prediction$rasterLayer, filename="myFile1.tif", overwrite=TRUE)
-writeRaster(predictionSSP119$rasterLayer, filename="myFile2.tif", format="GTiff", overwrite=TRUE)
-writeRaster(predictionSSP245$rasterLayer, filename="myFile3.tif", format="GTiff", overwrite=TRUE)
+writeRaster(predictionPresentReclass, filename="myFile1.tif", overwrite=TRUE)
+writeRaster(predictionDiffSSP119, filename="myFile2.tif", format="GTiff", overwrite=TRUE)
+writeRaster(predictionDiffSSP245, filename="myFile3.tif", format="GTiff", overwrite=TRUE)
 
 ## -----------------------------------------------------------------------------------------------
 ## -----------------------------------------------------------------------------------------------

@@ -82,14 +82,13 @@ presences <- vect(presences, geom=c("Lon","Lat"))
 # download layers for present conditions
 variables <- list(var1 = c("thetao","ltmax","depthmean"),
                   var2 = c("thetao","ltmin","depthmean"),
-                  var4 = c("no3","ltmin","depthmean"),
-                  var5 = c("so","ltmin","depthmean"))
+                  var3 = c("kdpar_mean","ltmax","depthsurf"))
 
-environmentalLayers <- download_multiple_layers(variables=variables, experiment=c("baseline"), decade=c(2010) , longitude = c(-45,45) , latitude = c(20,70))
+environmentalLayers <- download_multiple_layers(variables=variables, experiment="baseline", decade=2010 , longitude = c(-45,45) , latitude = c(20,70))
 
 # change names for simplicity
 names(environmentalLayers)
-names(environmentalLayers) <- c("TemperatureMax","TemperatureMin","Nitrate","Salinity")
+names(environmentalLayers) <- c("TemperatureMax","TemperatureMin","LightAttenuation")
 
 # plot layers
 plot(environmentalLayers, axes=TRUE)
@@ -100,10 +99,8 @@ plot(environmentalLayers, axes=TRUE)
 # develop a study region layer
 myStudyRegion <- studyRegion(rasterLayers=environmentalLayers, # SpatRaster of layers
                              presences=presences, # presence records
-                             distanceThreshold=500000, # distance from records in meters
+                             distanceThreshold=300000, # distance from records in meters
                              intertidalLayer = "../Data/Raster data/CoastLine.tif") # intertidal layer
-                             bathymetryLayer = "../Data/Raster data/Bathymetry.tif", # bathymetry layer
-                             depthPref=c(0,-50)) # known vertical distribution
 
 # inspect the study region layer
 plot(myStudyRegion, col="#979797", axes=TRUE, legend=FALSE)
@@ -160,7 +157,7 @@ hyperparametersList <- list(learning.rate=c(0.1,0.01,0.001) ,
                             n.trees=seq(100,1000,by=100))
 
 names(environmentalLayers)
-monotonicConstrains <- c("TemperatureMax" = -1 , "TemperatureMin" = 1, "Nitrate" = 1, "Salinity" = 1)
+monotonicConstrains <- c("TemperatureMax" = -1 , "TemperatureMin" = 1, "LightAttenuation" = -1)
 
 # fit brt model
 model <- trainModel(modelData, algorithm ="brt", hyperparameters=hyperparametersList, monotonicity=monotonicConstrains)
@@ -185,7 +182,7 @@ partialPlotTemperature <- partialPlot(model,modelData,variablePlot="TemperatureM
 partialPlotTemperature$tippingPoints
 partialPlotTemperature$partialPlot
 
-partialPlotTemperature <- partialPlot(model,modelData,variablePlot="Nitrate")
+partialPlotTemperature <- partialPlot(model,modelData,variablePlot="LightAttenuation")
 partialPlotTemperature$tippingPoints
 partialPlotTemperature$partialPlot
 
@@ -207,12 +204,12 @@ observed <- records$PA
 predicted <- extract(probabilityRaster,records, ID=FALSE)[,1]
 modelPerformance(observed,predicted,index="minimumTrain90")
 
-threshold <- 0.32392
+threshold <- 0.50233
 rclmat <- data.frame(from=c(0, threshold), to=c(threshold, 1), becomes=c(0,1))
 rclmat
 
 predictionPresentReclass <- classify(prediction$rasterLayer, rclmat)
-plot(predictionPresentReclass, main="Predicted species distribution",col = c("#b4b295ff", "#0c2f4dff"))
+plot(predictionPresentReclass, main="Predicted species distribution",col = c("#c3c3bdff", "#061b2eff"))
 
 ## -----------------------
 # model transferability
@@ -229,18 +226,20 @@ environmentalLayersSSP245 <- crop(environmentalLayersSSP245, myStudyRegion)
 environmentalLayersSSP245 <- mask(environmentalLayersSSP245, myStudyRegion)
 
 # redirect the names of the layers
-names(environmentalLayersSSP119) <- c("TemperatureMax","TemperatureMin","Nitrate","Salinity")
-names(environmentalLayersSSP245) <- c("TemperatureMax","TemperatureMin","Nitrate","Salinity")
+names(environmentalLayersSSP119) <- c("TemperatureMax","TemperatureMin")
+names(environmentalLayersSSP245) <- c("TemperatureMax","TemperatureMin")
 
 # plot the masked environmental layers
 plot(environmentalLayersSSP119, axes=TRUE)
 plot(environmentalLayersSSP245, axes=TRUE)
 
-# Multivariate environmental similarity surfaces for extrapolation detection
+environmentalLayersSSP119 <- c(environmentalLayersSSP119,subset(environmentalLayers,c("LightAttenuation")))
+environmentalLayersSSP245 <- c(environmentalLayersSSP245,subset(environmentalLayers,c("LightAttenuation")))
 
+# Multivariate environmental similarity surfaces for extrapolation detection
 mess_raster <- mess(stack(environmentalLayersSSP245), as.data.frame(environmentalLayers))
 mess_raster <- rast(mess_raster)
-mess_raster <- mask(, myStudyRegion)
+mess_raster <- mask(mess_raster, myStudyRegion)
 plot(mess_raster < 0)
 
 # transfer the distribution model
@@ -281,9 +280,9 @@ dev.off()
 
 # save the raster layers to external files
 
-writeRaster(prediction$rasterLayer, filename="myFile1.tif", overwrite=TRUE)
-writeRaster(predictionSSP119$rasterLayer, filename="myFile2.tif", format="GTiff", overwrite=TRUE)
-writeRaster(predictionSSP245$rasterLayer, filename="myFile3.tif", format="GTiff", overwrite=TRUE)
+writeRaster(predictionPresentReclass, filename="myFile1.tif", overwrite=TRUE)
+writeRaster(predictionDiffSSP119, filename="myFile2.tif", format="GTiff", overwrite=TRUE)
+writeRaster(predictionDiffSSP245, filename="myFile3.tif", format="GTiff", overwrite=TRUE)
 
 ## -----------------------------------------------------------------------------------------------
 ## -----------------------------------------------------------------------------------------------
