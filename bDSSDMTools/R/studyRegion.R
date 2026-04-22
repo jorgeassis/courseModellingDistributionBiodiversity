@@ -72,6 +72,8 @@ studyRegion <- function(rasterLayers, presences, distanceThreshold=200000, topog
 
     if( class(topographyLayer) == "character" ) { topographyLayer <- rast(topographyLayer) }
 
+    if( ! compareGeom(topographyLayer, shape, stopOnError = FALSE)) { stop("Error :: topographyLayer must have the same geometry (extent, resolution, CRS) as rasterLayers") }
+
     topographyLayer <- terra::crop(topographyLayer, shape)
 
     m_specific <- data.frame(from=min(verticalPref), to=max(verticalPref), becomes=1)
@@ -82,7 +84,7 @@ studyRegion <- function(rasterLayers, presences, distanceThreshold=200000, topog
 
   if( ! is.null(distanceThreshold) ) {
 
-    crs(presences, warn=FALSE) <- shape
+    crs(presences, warn=FALSE) <- crs(shape)
 
     # Make a buffer on presences using distanceThreshold in meters
     presencesBuffer <- terra::buffer(presences, width=distanceThreshold)
