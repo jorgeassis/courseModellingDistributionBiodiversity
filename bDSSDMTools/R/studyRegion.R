@@ -15,14 +15,14 @@
 #'   the maximum distance (in CRS units, typically meters) from presence points
 #'   to include in the study region. Cells outside this buffer will be masked out.
 #'   Setting to NULL disables this criterion. Requires projected CRS.
-#' @param bathymetryLayer Optional. A `terra SpatRaster` or a character string
-#'   path to a bathymetry raster file. Used with `depthPref`. Must have the
+#' @param topographyLayer Optional. A `terra SpatRaster` or a character string
+#'   path to a bathymetry raster file. Used with `verticalPref`. Must have the
 #'   same CRS as `rasterLayers`.
-#' @param depthPref Optional. A numeric vector of length 2: `c(min_depth, max_depth)`.
+#' @param verticalPref Optional. A numeric vector of length 2: `c(min_depth, max_depth)`.
 #'   Defines the acceptable depth range. Values should typically be non-positive
 #'   (<= 0). Cells outside this depth range will be masked out. Requires
-#'   `bathymetryLayer` to be provided.
-#' @param intertidalLayer Optional. A `terra SpatRaster` or a character string
+#'   `topographyLayer` to be provided.
+#' @param coastalLayer Optional. A `terra SpatRaster` or a character string
 #'   path to an intertidal zone raster file. Cells that are NA in this layer
 #'   (after cropping) will be masked out from the study region. Must have the
 #'   same CRS as `rasterLayers`.
@@ -40,7 +40,7 @@
 #' @importFrom methods is
 #'
 
-studyRegion <- function(rasterLayers, presences, distanceThreshold=200000, bathymetryLayer=NULL, depthPref=NULL, intertidalLayer=NULL, maskPolygon=NULL, trimToRegion=TRUE) {
+studyRegion <- function(rasterLayers, presences, distanceThreshold=200000, topographyLayer=NULL, verticalPref=NULL, coastalLayer=NULL, maskPolygon=NULL, trimToRegion=TRUE) {
 
   forceStudyRegion <- numeric(0)
   nonStudyRegion <- numeric(0)
@@ -57,27 +57,26 @@ studyRegion <- function(rasterLayers, presences, distanceThreshold=200000, bathy
 
   }
 
-  if( ! is.null(intertidalLayer) ) {
+  if( ! is.null(coastalLayer) ) {
 
-    if( class(intertidalLayer) == "character" ) { intertidalLayer <- rast(intertidalLayer) }
+    if( class(coastalLayer) == "character" ) { coastalLayer <- rast(coastalLayer) }
 
-    intertidalLayer <- terra::crop(intertidalLayer, shape)
-    forceStudyRegion <- c(forceStudyRegion,which(!is.na(intertidalLayer[][,1])))
+    coastalLayer <- terra::crop(coastalLayer, shape)
+    forceStudyRegion <- c(forceStudyRegion,which(!is.na(coastalLayer[][,1])))
 
   }
 
-  if( ! is.null(bathymetryLayer) & ! is.null(depthPref) ) {
+  if( ! is.null(topographyLayer) & ! is.null(verticalPref) ) {
 
-    if( max(depthPref) > 0 ) { stop("Error :: depthPref must be lower or equal to 0") }
-    if( length(depthPref) != 2 ) { stop("Error :: depthPref must be a vector of length 2") }
+    if( length(verticalPref) != 2 ) { stop("Error :: verticalPref must be a vector of length 2") }
 
-    if( class(bathymetryLayer) == "character" ) { bathymetryLayer <- rast(bathymetryLayer) }
+    if( class(topographyLayer) == "character" ) { topographyLayer <- rast(topographyLayer) }
 
-    bathymetryLayer <- terra::crop(bathymetryLayer, shape)
+    topographyLayer <- terra::crop(topographyLayer, shape)
 
-    m_specific <- data.frame(from=min(depthPref), to=max(depthPref), becomes=1)
-    bathymetryLayer.i <- terra::classify(bathymetryLayer, rcl = m_specific, others = NA)
-    forceStudyRegion <- c(forceStudyRegion,which(!is.na(bathymetryLayer.i[][,1])))
+    m_specific <- data.frame(from=min(verticalPref), to=max(verticalPref), becomes=1)
+    topographyLayer.i <- terra::classify(topographyLayer, rcl = m_specific, others = NA)
+    forceStudyRegion <- c(forceStudyRegion,which(!is.na(topographyLayer.i[][,1])))
 
   }
 

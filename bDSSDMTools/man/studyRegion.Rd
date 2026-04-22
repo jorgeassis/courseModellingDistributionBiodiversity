@@ -8,9 +8,9 @@ studyRegion(
   rasterLayers,
   presences,
   distanceThreshold = 2e+05,
-  bathymetryLayer = NULL,
-  depthPref = NULL,
-  intertidalLayer = NULL,
+  topographyLayer = NULL,
+  verticalPref = NULL,
+  coastalLayer = NULL,
   maskPolygon = NULL,
   trimToRegion = TRUE
 )
@@ -28,16 +28,16 @@ the maximum distance (in CRS units, typically meters) from presence points
 to include in the study region. Cells outside this buffer will be masked out.
 Setting to NULL disables this criterion. Requires projected CRS.}
 
-\item{bathymetryLayer}{Optional. A \verb{terra SpatRaster} or a character string
-path to a bathymetry raster file. Used with \code{depthPref}. Must have the
+\item{topographyLayer}{Optional. A \verb{terra SpatRaster} or a character string
+path to a bathymetry raster file. Used with \code{verticalPref}. Must have the
 same CRS as \code{rasterLayers}.}
 
-\item{depthPref}{Optional. A numeric vector of length 2: \code{c(min_depth, max_depth)}.
+\item{verticalPref}{Optional. A numeric vector of length 2: \code{c(min_depth, max_depth)}.
 Defines the acceptable depth range. Values should typically be non-positive
 (<= 0). Cells outside this depth range will be masked out. Requires
-\code{bathymetryLayer} to be provided.}
+\code{topographyLayer} to be provided.}
 
-\item{intertidalLayer}{Optional. A \verb{terra SpatRaster} or a character string
+\item{coastalLayer}{Optional. A \verb{terra SpatRaster} or a character string
 path to an intertidal zone raster file. Cells that are NA in this layer
 (after cropping) will be masked out from the study region. Must have the
 same CRS as \code{rasterLayers}.}
