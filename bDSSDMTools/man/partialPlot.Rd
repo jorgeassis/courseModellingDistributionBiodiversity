@@ -8,8 +8,8 @@ partialPlot(model, modelData, variablePlot)
 }
 \description{
 Calculates and plots the partial dependence (response curve) for a specified
-predictor variable from an ensemble of models. It shows how the predicted
-suitability (averaged across models) changes across the observed range of the
+predictor variable from an ensemble of model.is. It shows how the predicted
+suitability (averaged across model.is) changes across the observed range of the
 chosen variable, while holding other predictor variables constant at their mean
 values. Optionally calculates potential threshold/tipping points. Includes a
 rug plot showing the distribution of the variable for presence points.

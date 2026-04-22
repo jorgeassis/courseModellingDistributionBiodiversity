@@ -11,7 +11,7 @@
 #' @importFrom stats sd reorder na.omit coefficients # For GLM coefs and plotting/stats
 #' @importFrom ggplot2 ggplot aes geom_bar geom_errorbar coord_flip theme_bw theme element_text element_blank element_line labs geom_hline annotate position_dodge ggplotGrob is.ggplot # For plotting
 #' @importFrom gbm summary.gbm # Necessary for summary method for gbm objects
-#' @importFrom xgboost xgb.importance # For xgboost importance
+#' @importFrom xgboost xgb.importance getinfo # For xgboost importance
 #' @importFrom methods is
 #'
 
@@ -41,9 +41,9 @@ variableContribution <- function(models,rasterLayers) {
     relativeImportance$relImportance.sd <-  relativeImportance$relImportance.sd * 100
   }
 
-  if(algorithmType == "xgb.Booster") {
+  if( algorithmType %in% c("xgboost","xgb.Booster") ) {
     for(m in 1:length(algorithmModels)) {
-      relativeImportance.m = as.data.frame(xgb.importance(algorithmModels[[m]]$feature_names, model = algorithmModels[[m]])[,1:2])
+      relativeImportance.m = as.data.frame(xgboost::xgb.importance(xgboost::getinfo(algorithmModels[[m]], "feature_name"), model = algorithmModels[[m]])[,1:2])
       relativeImportanceMatrix[,m] <- relativeImportance.m[match(names(rasterLayers),relativeImportance.m$Feature),"Gain"]
     }
     relativeImportance <- data.frame(Predictor=names(rasterLayers),relImportance=apply(relativeImportanceMatrix,1,mean,na.rm=T),relImportance.sd=apply(relativeImportanceMatrix,1,sd,na.rm=T))
@@ -52,6 +52,45 @@ variableContribution <- function(models,rasterLayers) {
     relativeImportance$relImportance.sd <-  relativeImportance$relImportance.sd * 100
   }
 
+  perm_importance <- function(modelM, data, y,type) {
+        base_pred <- predict(modelM[[1]], data, type=type )
+        base_cor  <- cor(base_pred, y)
+
+        vars <- colnames(data)
+        imp <- numeric(length(vars))
+        names(imp) <- vars
+
+        for (v in vars) {
+          data_perm <- data
+          data_perm[[v]] <- sample(data_perm[[v]])
+
+          pred_perm <- predict(modelM[[1]], data_perm, type=type )
+          imp[v] <- 1 - cor(pred_perm, base_pred)
+        }
+
+        imp / sum(imp)
+  }
+
+  if( algorithmType == "maxnet" ) {
+    for(m in 1:length(algorithmModels)) {
+      relativeImportanceMatrix[,m] <- perm_importance(modelM=algorithmModels,data=as.data.frame(rasterLayers,na.rm=T),y=c(predict(algorithmModels[[1]], as.data.frame(rasterLayers,na.rm=T),type = "cloglog")), type = "cloglog" )
+    }
+    relativeImportance <- data.frame(Predictor=names(rasterLayers),relImportance=apply(relativeImportanceMatrix,1,mean,na.rm=T),relImportance.sd=apply(relativeImportanceMatrix,1,sd,na.rm=T))
+    relativeImportance[is.na(relativeImportance)] <- 0
+    relativeImportance$relImportance <- ( (relativeImportance$relImportance ) / sum(relativeImportance$relImportance) ) * 100
+    relativeImportance$relImportance.sd <-  relativeImportance$relImportance.sd * 100
+  }
+
+  if( algorithmType == "glm" ) {
+    for(m in 1:length(algorithmModels)) {
+      relativeImportanceMatrix[,m] <- perm_importance(modelM=algorithmModels,data=as.data.frame(rasterLayers,na.rm=T),y=c(predict(algorithmModels[[1]], as.data.frame(rasterLayers,na.rm=T),type = "response")), type = "response" )
+    }
+    relativeImportance <- data.frame(Predictor=names(rasterLayers),relImportance=apply(relativeImportanceMatrix,1,mean,na.rm=T),relImportance.sd=apply(relativeImportanceMatrix,1,sd,na.rm=T))
+    relativeImportance[is.na(relativeImportance)] <- 0
+    relativeImportance$relImportance <- ( (relativeImportance$relImportance ) / sum(relativeImportance$relImportance) ) * 100
+    relativeImportance$relImportance.sd <-  relativeImportance$relImportance.sd * 100
+  }
+  
   ## ----------
 
   relativeImportance$relImportance.sd <- relativeImportance$relImportance.sd / sqrt(length(model$model))

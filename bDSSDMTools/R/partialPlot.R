@@ -1,8 +1,8 @@
 #' Generate Partial Dependence Plot (Response Curve)
 #'
 #' Calculates and plots the partial dependence (response curve) for a specified
-#' predictor variable from an ensemble of models. It shows how the predicted
-#' suitability (averaged across models) changes across the observed range of the
+#' predictor variable from an ensemble of model.is. It shows how the predicted
+#' suitability (averaged across model.is) changes across the observed range of the
 #' chosen variable, while holding other predictor variables constant at their mean
 #' values. Optionally calculates potential threshold/tipping points. Includes a
 #' rug plot showing the distribution of the variable for presence points.
@@ -29,13 +29,16 @@ partialPlot <- function(model,modelData,variablePlot) {
     axis.text.x = element_text(size=11, margin = margin(t = 8, r = 0, b = 0, l = 0)),
     axis.text.y = element_text(size=11, margin = margin(t = 0, r = 8, b = 0, l = 0)))
 
-  if( "model" %in% names(model) ) { model <- model$model }
-  if( "modelData" %in% names(modelData) ) { modelData <- modelData$modelData }
+  model.i <- model
+  modelData.i <- modelData
 
-  modelData.PA <- modelData[,"PA"]
-  modelData <- modelData[, -which(colnames(modelData) %in% c("PA","Lon","Lat","cvFold","Set","rep"))]
+  if( "model" %in% names(model.i) ) { model.i <- model.i$model }
+  if( "modelData" %in% names(modelData.i) ) { modelData.i <- modelData.i$modelData }
 
-  if( variablePlot %in% colnames(modelData) == FALSE) { stop("Error :: variablePlot not in modelData") }
+  modelData.i.PA <- modelData.i[,"PA"]
+  modelData.i <- modelData.i[, -which(colnames(modelData.i) %in% c("PA","Lon","Lat","bootstrap","Set","rep"))]
+
+  if( variablePlot %in% colnames(modelData.i) == FALSE) { stop("Error :: variablePlot not in modelData") }
 
   yLimits <- c(0,1)
 
@@ -47,8 +50,8 @@ partialPlot <- function(model,modelData,variablePlot) {
 
   ## -----------------------
 
-  data.to.plot.i <- modelData[,variablePlot]
-  data.to.plot <- modelData
+  data.to.plot.i <- modelData.i[,variablePlot]
+  data.to.plot <- modelData.i
   data.to.plot <- apply(data.to.plot,2,mean)
   data.to.plot <- do.call("rbind", replicate(100, data.to.plot, simplify = FALSE))
   data.to.plot[,variablePlot] <- seq(min(data.to.plot.i,na.rm=T),max(data.to.plot.i,na.rm=T),length.out=100)
@@ -56,22 +59,20 @@ partialPlot <- function(model,modelData,variablePlot) {
 
   matrixEffect <- NULL
 
-  for( m in 1:length(model)) {
+  for( m in 1:length(model.i)) {
 
-    model.i <- model[[m]]
+    model.i.i <- model.i[[m]]
 
-    if ( "xgb.Booster" %in% class(model.i) ) {
+    if ( class(model.i.i)[1] %in% c("xgboost","xgb.Booster") ) {
 
       matrixEffect.m <- data.to.plot
-      matrixEffect.m <- matrixEffect.m[model.i$feature_names]
-      matrixEffect.m <- xgb.DMatrix(data = data.matrix(matrixEffect.m), label = rep(0,nrow(matrixEffect.m)))
-      matrixEffect.m <- data.frame(Effect= predict(model.i,matrixEffect.m, type = "response") )
+      #matrixEffect.m <- matrixEffect.m[model.i$feature_names]
+      #matrixEffect.m <- xgb.DMatrix(data = data.matrix(matrixEffect.m), label = rep(0,nrow(matrixEffect.m)))
+      matrixEffect.m <- data.frame(Effect=predict(model.i.i,matrixEffect.m, type = "response") )
 
-    }
+    } else {
 
-    if ( ! "xgb.Booster" %in% class(model.i)  ) {
-
-      matrixEffect.m <- data.frame(Effect= predict(model.i,data.to.plot))
+      matrixEffect.m <- data.frame(Effect=predict(model.i.i,data.to.plot))
 
     }
 
@@ -94,7 +95,7 @@ partialPlot <- function(model,modelData,variablePlot) {
 
   ## -----------------------
 
-  speciesDataUse <- modelData[ modelData.PA == 1,variablePlot]
+  speciesDataUse <- modelData.i[ modelData.i.PA == 1,variablePlot]
   speciesDataUse <- data.frame(x=speciesDataUse,y=min(data.to.plot$value))
   speciesDataUse <- speciesDataUse[sort(speciesDataUse[,1], index.return =T)$ix,]
 

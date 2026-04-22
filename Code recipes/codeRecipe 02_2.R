@@ -197,7 +197,27 @@ model_xgboost$hyperparameters
 model_xgboost$performance
 
 ## -----------------------
+# fit a glm model
+
+# fit brt model
+model_glm <- trainModel(modelData, algorithm ="glm")
+
+# inspect model performance
+model_glm$performance
+
+## -----------------------
 # fit a maxent model using hyperparameter tuning
+
+background <- backgroundInformation(rasterLayers = environmentalLayers, n = 1000)
+presences$PA <- 1
+background$PA <- 0
+records <- rbind(background, presences)
+
+modelData <- generateModelData(records, environmentalLayers, method="blocks", proportionTrain=0.7, proportionTest=0.15, proportionVal=0.15, bootstrapRounds = 6, paMinimum=1000, paRatio=1000, sacDist)
+
+# inspect the data partitioning
+modelData$plotDatasets
+modelData$summary
 
 # define hyperparameters add monotonic constrains
 hyperparametersList <- list(betamultiplier = c(0.5, 1, 5, 10, 25),
@@ -211,18 +231,6 @@ model_maxent$hyperparameters
 
 # inspect model performance
 model_maxent$performance
-
-## -----------------------
-# fit a glm model
-
-# fit brt model
-model_glm <- trainModel(modelData, algorithm ="glm")
-
-# inspect hyperparameter combination selected per fold
-model_glm$hyperparameters
-
-# inspect model performance
-model_glm$performance
 
 ## -----------------------
 # ensemble algorithms

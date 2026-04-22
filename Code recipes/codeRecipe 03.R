@@ -149,18 +149,19 @@ modelData$plotDatasets
 modelData$summary
 
 ## -----------------------
-# fit a brt model using hyperparameter tuning and monotonic constrains
+# fit a xgboost model using hyperparameter tuning and monotonic constrains
 
 # define hyperparameters add monotonic constrains
-hyperparametersList <- list(learning.rate=c(0.1,0.01,0.001) , 
-                            interaction.depth=c(2,3,4), 
-                            n.trees=seq(100,1000,by=100))
+hyperparametersList <- list(shrinkage = c(0.1, 0.01, 0.001),
+                            depth = c(2, 3, 4),
+                            rounds = c(10,50, 100),
+                            min_split_loss = c(0.1, 0.25, 0.5, 1))
 
 names(environmentalLayers)
 monotonicConstrains <- c("TemperatureMax" = -1 , "TemperatureMin" = 1, "LightAttenuation" = -1)
 
 # fit brt model
-model <- trainModel(modelData, algorithm ="brt", hyperparameters=hyperparametersList, monotonicity=monotonicConstrains)
+model <- trainModel(modelData, algorithm ="xgboost", hyperparameters=hyperparametersList, monotonicity=monotonicConstrains)
 
 # inspect hyperparameter combination selected per fold
 model$hyperparameters
@@ -174,17 +175,17 @@ modelVarContrib$dataFrame
 modelVarContrib$plot
 
 # inspect response curves of variables
-partialPlotTemperature <- partialPlot(model,modelData,variablePlot="TemperatureMax")
-partialPlotTemperature$tippingPoints
-partialPlotTemperature$partialPlot
+modelPartialPlot <- partialPlot(model,modelData,variablePlot="TemperatureMax")
+modelPartialPlot$tippingPoints
+modelPartialPlot$partialPlot
 
-partialPlotTemperature <- partialPlot(model,modelData,variablePlot="TemperatureMin")
-partialPlotTemperature$tippingPoints
-partialPlotTemperature$partialPlot
+modelPartialPlot <- partialPlot(model,modelData,variablePlot="TemperatureMin")
+modelPartialPlot$tippingPoints
+modelPartialPlot$partialPlot
 
-partialPlotTemperature <- partialPlot(model,modelData,variablePlot="LightAttenuation")
-partialPlotTemperature$tippingPoints
-partialPlotTemperature$partialPlot
+modelPartialPlot <- partialPlot(model,modelData,variablePlot="LightAttenuation")
+modelPartialPlot$tippingPoints
+modelPartialPlot$partialPlot
 
 ## -----------------------
 # predict distribution

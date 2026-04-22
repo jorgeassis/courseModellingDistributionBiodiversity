@@ -181,17 +181,17 @@ modelVarContrib$dataFrame
 modelVarContrib$plot
 
 # inspect response curves of variables
-partialPlotTemperature <- partialPlot(model,modelData,variablePlot="TemperatureMax")
-partialPlotTemperature$tippingPoints
-partialPlotTemperature$partialPlot
+modelPartialPlot <- partialPlot(model,modelData,variablePlot="TemperatureMax")
+modelPartialPlot$tippingPoints
+modelPartialPlot$partialPlot
 
-partialPlotTemperature <- partialPlot(model,modelData,variablePlot="TemperatureMin")
-partialPlotTemperature$tippingPoints
-partialPlotTemperature$partialPlot
+modelPartialPlot <- partialPlot(model,modelData,variablePlot="TemperatureMin")
+modelPartialPlot$tippingPoints
+modelPartialPlot$partialPlot
 
-partialPlotTemperature <- partialPlot(model,modelData,variablePlot="Oxygen")
-partialPlotTemperature$tippingPoints
-partialPlotTemperature$partialPlot
+modelPartialPlot <- partialPlot(model,modelData,variablePlot="Oxygen")
+modelPartialPlot$tippingPoints
+modelPartialPlot$partialPlot
 
 ## -----------------------
 # predict distribution
@@ -246,7 +246,6 @@ mess_raster <- mess(stack(environmentalLayersSSP245), as.data.frame(environmenta
 mess_raster <- rast(mess_raster)
 mess_raster <- mask(mess_raster, myStudyRegion)
 plot(mess_raster < 0)
-
 
 # transfer the distribution model
 predictionSSP119 <- predictModel(model=model,newData=environmentalLayersSSP119)
