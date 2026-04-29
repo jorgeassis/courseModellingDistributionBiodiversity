@@ -12,11 +12,13 @@
 
 # load libraries
 library(terra)
+library(tidyterra)
+library(ggplot2)
 library(bDSSDMTools)
 
 # read occurrence records (presences) and transform to spatial object
 presences <- read.table("../Data/Text delimited/species_presence_records.csv", sep = ";", header = TRUE)
-presences <- vect(presences, geom = c("Lon", "Lat"))
+presences <- vect(presences, geom = c("Lon", "Lat"), crs = "EPSG:4326")
 
 # download layers for present conditions
 variables <- list(var1 = c("thetao", "mean", "depthmean"),
@@ -32,8 +34,8 @@ plot(environmentalLayers, axes = TRUE)
 myStudyRegion <- studyRegion(rasterLayers=environmentalLayers, # SpatRaster of layers
                              presences=presences, # presence records
                              distanceThreshold=200000, # distance from records in meters
-                             bathymetryLayer = "../Data/Raster data/Bathymetry.tif", # bathymetry layer
-                             depthPref=c(-15,-300)) # known vertical distribution
+                             topographyLayer = "../Data/Raster data/Bathymetry.tif", # bathymetry layer
+                             verticalPref=c(-15,-300)) # known vertical distribution
 
 # inspect the study region layer
 plot(myStudyRegion, main="Study region", col="#979797", axes=TRUE)
@@ -61,13 +63,20 @@ landmassMed <- crop(landmass, myStudyRegion)
 plot(landmassMed, main = "Species Records", col = "#D4D4D4", border = "#D4D4D4", axes = TRUE)
 plot(records, y = "PA", col = c("#c29431", "#043259"), pch = 16, cex = 0.5, add = TRUE)
 
+# Inspect spatial autocorrelation in the layers
+sacAnalysis <- sac(environmentalLayers)
+
+sacAnalysis$plot
+sacDist <- sacAnalysis$distance
+sacDist
+
 # extract environmental values and make an object with all information to model
-modelData <- generateModelData(records, envConditions = environmentalLayers, method = "blocks",
-                               kFolds = 10)
+modelData <- generateModelData(records, environmentalLayers, method = "blocks",
+                               bootstrapRounds = 10, sacDist=sacDist)
 
 # Make hyperparameter list
 hyperparametersList <- list(learning.rate = c(0.1, 0.01, 0.001),
-                            interaction.depth = c(2, 3,4),
+                            interaction.depth = c(2, 3, 4),
                             n.trees = seq(100, 1000, by = 100))
 
 # train the model with non-default hyperparameters
@@ -76,19 +85,24 @@ model <- trainModel(modelData, algorithm = "brt", hyperparameters = hyperparamet
 # inspect the hyperparameters selected in cross-validation
 model$hyperparameters
 
+# inspect the performance of the model with the selected hyperparameters
+model$performance
+
 # --------------------------------------
 # --------------------------------------
 
-# Challenge 7,2
+# Challenge 7.2
 # The main objective of this challenge is to fit a brt model using monotonic constrains.
 
 # load libraries
 library(terra)
+library(tidyterra)
+library(ggplot2)
 library(bDSSDMTools)
 
 # read occurrence records (presences) and transform to spatial object
 presences <- read.table("../Data/Text delimited/species_presence_records.csv", sep = ";", header = TRUE)
-presences <- vect(presences, geom = c("Lon", "Lat"))
+presences <- vect(presences, geom = c("Lon", "Lat"), crs = "EPSG:4326")
 
 # download layers for present conditions
 variables <- list(var1 = c("thetao", "mean", "depthmean"),
@@ -104,8 +118,8 @@ plot(environmentalLayers, axes = TRUE)
 myStudyRegion <- studyRegion(rasterLayers=environmentalLayers, # SpatRaster of layers
                              presences=presences, # presence records
                              distanceThreshold=200000, # distance from records in meters
-                             bathymetryLayer = "../Data/Raster data/Bathymetry.tif", # bathymetry layer
-                             depthPref=c(-15,-300)) # known vertical distribution
+                             topographyLayer = "../Data/Raster data/Bathymetry.tif", # bathymetry layer
+                             verticalPref=c(-15,-300)) # known vertical distribution
 
 # inspect the study region layer
 plot(myStudyRegion, main="Study region", col="#979797", axes=TRUE)
@@ -133,14 +147,23 @@ landmassMed <- crop(landmass, myStudyRegion)
 plot(landmassMed, main = "Species Records", col = "#D4D4D4", border = "#D4D4D4", axes = TRUE)
 plot(records, y = "PA", col = c("#c29431", "#043259"), pch = 16, cex = 0.5, add = TRUE)
 
+# Inspect spatial autocorrelation in the layers
+sacAnalysis <- sac(environmentalLayers)
+
+sacAnalysis$plot
+sacDist <- sacAnalysis$distance
+sacDist
+
 # extract environmental values and make an object with all information to model
-modelData <- generateModelData(records, envConditions = environmentalLayers, method = "blocks",
-                               kFolds = 10)
+modelData <- generateModelData(records, environmentalLayers, method = "blocks",
+                               bootstrapRounds = 10, sacDist=sacDist)
 
 # monotonic constrains
-monoton <- c("OceanTemperature_depthMean_Baseline_2010_mean"=1, # negative effect
+monoton <- c("OceanTemperature_depthMean_Baseline_2010_mean"=-1, # negative effect
              "DissolvedMolecularOxygen_depthMean_Baseline_2010_mean"=1, # positive effect
-             "TotalPhytoplankton_depthMean_Baseline_2010_mean"=1) # negative effect
+             "TotalPhytoplankton_depthMean_Baseline_2010_mean"=1) # positive effect
+
+monoton
 
 # train the model and inspect the partial dependence plot of temperature effect
 model <- trainModel(modelData, algorithm ="brt", monotonicity=monoton)

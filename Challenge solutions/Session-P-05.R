@@ -12,6 +12,8 @@
 
 # load libraries
 library(terra)
+library(tidyterra)
+library(ggplot2)
 library(bDSSDMTools)
 
 # load a vector defining global landmasses
@@ -22,7 +24,7 @@ records <- read.table("../Data/Text delimited/species_presence_absence_records.c
                       header = TRUE)
 
 # transform data.frame into a spatial object
-records <- vect(records, geom = c("Lon", "Lat"))
+records <- vect(records, geom = c("Lon", "Lat"), crs = "EPSG:4326")
 
 # plot records
 plot(landmass, main = "Species distribution records", col = "#D4D4D4", border = "#D4D4D4", axes = TRUE)
@@ -44,9 +46,9 @@ plot(environmentalLayers)
 myStudyRegion <- studyRegion(rasterLayers=environmentalLayers, # SpatRaster of layers
                              presences=records, # presence records
                              distanceThreshold=200000, # distance from records in meters
-                             bathymetryLayer = "../Data/Raster data/Bathymetry.tif", # bathymetry layer
-                             depthPref=c(0,-500), # known vertical distribution
-                             intertidalLayer = "../Data/Raster data/CoastLine.tif" ) # consider intertidal region
+                             topographyLayer = "../Data/Raster data/Bathymetry.tif", # bathymetry layer
+                             verticalPref=c(0,-500), # known vertical distribution
+                             coastalLayer = "../Data/Raster data/CoastLine.tif" ) # consider intertidal region
 
 # inspect the study region layer
 plot(myStudyRegion, main="Study region", col="#979797", axes=TRUE)
@@ -61,10 +63,10 @@ environmentalLayers <- mask(environmentalLayers, myStudyRegion)
 plot(environmentalLayers, axes = TRUE)
 
 # extract environmental values and make an object with all information to model
-modelData <- generateModelData(records, envConditions = environmentalLayers)
+modelData <- generateModelData(records, environmentalLayers)
 
 # fit a binomial GLM to the dataset
-model <- trainModel(modelData, algorithm = "brt")
+model <- trainModel(modelData, algorithm = "glm")
 
 # predict the distribution with the model over a raster stack
 prediction <- predictModel(model = model, newData = environmentalLayers)
@@ -80,6 +82,8 @@ plot(prediction$rasterLayer, main = "Predicted species distribution", col = rev(
 
 # load libraries
 library(terra)
+library(tidyterra)
+library(ggplot2)
 library(bDSSDMTools)
 
 # load a vector defining global landmasses
@@ -89,7 +93,7 @@ landmass <- vect("../Data/Vector data/Landmass/landmass.shp")
 presences <- read.table("../Data/Text delimited/species_presence_records.csv", sep = ";", header = TRUE)
 
 # transform data.frame into a spatial object
-presences <- vect(presences, geom = c("Lon", "Lat"))
+presences <- vect(presences, geom = c("Lon", "Lat"), crs = "EPSG:4326")
 
 # plot records
 plot(landmass, main = "Species distribution records", col = "#D4D4D4", border = "#D4D4D4", axes = TRUE)
@@ -111,8 +115,8 @@ plot(environmentalLayers)
 myStudyRegion <- studyRegion(rasterLayers=environmentalLayers, # SpatRaster of layers
                              presences=presences, # presence records
                              distanceThreshold=200000, # distance from records in meters
-                             bathymetryLayer = "../Data/Raster data/Bathymetry.tif", # bathymetry layer
-                             depthPref=c(-15,-300)) # known vertical distribution# consider intertidal region
+                             topographyLayer = "../Data/Raster data/Bathymetry.tif", # bathymetry layer
+                             verticalPref=c(-15,-300)) # known vertical distribution# consider intertidal region
 
 # inspect the study region layer
 plot(myStudyRegion, main="Study region", col="#979797", axes=TRUE)
@@ -143,12 +147,12 @@ plot(records, y = "PA", col = c("#c29431", "#043259"), pch = 16, cex = 0.5, add 
 # extract environmental values and make an object with all information to model.
 # If presences are < 100, the function will generate 10 rounds of different 1:1 pseudo-absences (this is the default)
 modelData <- generateModelData(records,
-                               envConditions=environmentalLayers,
+                               environmentalLayers,
                                paMinimum = 100,
-                               paRounds = 10,
+                               bootstrapRounds = 10,
                                paRatio = 1)
 
-# fit a binomial GLM to the dataset
+# fit a binomial brt to the dataset
 model <- trainModel(modelData, algorithm = "brt")
 
 # predict the distribution with the model over a raster stack
@@ -165,6 +169,8 @@ plot(prediction$rasterLayer, main = "Predicted species distribution", col = rev(
 
 # load libraries
 library(terra)
+library(tidyterra)
+library(ggplot2)
 library(bDSSDMTools)
 
 # load a vector defining global landmasses
@@ -174,7 +180,7 @@ landmass <- vect("../Data/Vector data/Landmass/landmass.shp")
 presences <- read.table("../Data/Text delimited/species_presence_records.csv", sep = ";", header = TRUE)
 
 # transform data.frame into a spatial object
-presences <- vect(presences, geom = c("Lon", "Lat"))
+presences <- vect(presences, geom = c("Lon", "Lat"), crs = "EPSG:4326")
 
 # plot records
 plot(landmass, main = "Species distribution records", col = "#D4D4D4", border = "#D4D4D4", axes = TRUE)
@@ -200,8 +206,8 @@ names(environmentalLayers) <- gsub(" ", "_", names(environmentalLayers))
 myStudyRegion <- studyRegion(rasterLayers=environmentalLayers, # SpatRaster of layers
                              presences=presences, # presence records
                              distanceThreshold=200000, # distance from records in meters
-                             bathymetryLayer = "../Data/Raster data/Bathymetry.tif", # bathymetry layer
-                             depthPref=c(-15,-300)) # known vertical distribution# consider intertidal region
+                             topographyLayer = "../Data/Raster data/Bathymetry.tif", # bathymetry layer
+                             verticalPref=c(-15,-300)) # known vertical distribution# consider intertidal region
 
 # inspect the study region layer
 plot(myStudyRegion, main="Study region", col="#979797", axes=TRUE)
@@ -230,7 +236,7 @@ plot(landmassMed, main = "Species records", col = "#D4D4D4", border = "#D4D4D4",
 plot(records, y = "PA", col = c("#c29431", "#043259"), pch = 16, cex = 0.5, add = TRUE)
 
 # extract environmental values and make an object with all information to model
-modelData <- generateModelData(records, envConditions = environmentalLayers)
+modelData <- generateModelData(records, environmentalLayers)
 
 # fit a binomial GLM to the dataset
 model <- trainModel(modelData, algorithm = "maxent")
@@ -249,6 +255,8 @@ plot(prediction$rasterLayer, main = "Predicted species distribution", col = rev(
 
 # load libraries
 library(terra)
+library(tidyterra)
+library(ggplot2)
 library(bDSSDMTools)
 
 # load a vector defining global landmasses
@@ -258,7 +266,7 @@ landmass <- vect("../Data/Vector data/Landmass/landmass.shp")
 presences <- read.table("../Data/Text delimited/species_presence_records.csv", sep = ";", header = TRUE)
 
 # transform data.frame into a spatial object
-presences <- vect(presences, geom = c("Lon", "Lat"))
+presences <- vect(presences, geom = c("Lon", "Lat"), crs = "EPSG:4326")
 
 # plot records
 plot(landmass, main = "Species distribution records", col = "#D4D4D4", border = "#D4D4D4", axes = TRUE)
@@ -272,18 +280,15 @@ environmentalLayersPres <- download_multiple_layers(variables = variables, exper
 # plot layers
 plot(environmentalLayersPres, axes = TRUE)
 
-# download layers for end-of-century conditions
-environmentalLayersFut <- download_multiple_layers(variables = variables, experiment = c("ssp245"),
-                                                   decade = c(2090), longitude = c(-15, 45), latitude = c(25, 50))
-# plot layers
-plot(environmentalLayersFut, axes = TRUE)
+names(environmentalLayersPres)
+names(environmentalLayersPres) <- c("Temperature", "Oxygen", "Productivity")
 
 # develop a study region layer
 myStudyRegion <- studyRegion(rasterLayers=environmentalLayers, # SpatRaster of layers
                              presences=presences, # presence records
                              distanceThreshold=200000, # distance from records in meters
-                             bathymetryLayer = "../Data/Raster data/Bathymetry.tif", # bathymetry layer
-                             depthPref=c(-15,-300)) # known vertical distribution# consider intertidal region
+                             topographyLayer = "../Data/Raster data/Bathymetry.tif", # bathymetry layer
+                             verticalPref=c(-15,-300)) # known vertical distribution# consider intertidal region
 
 # inspect the study region layer
 plot(myStudyRegion, main="Study region", col="#979797", axes=TRUE)
@@ -297,6 +302,31 @@ environmentalLayersPres <- mask(environmentalLayersPres, myStudyRegion)
 # plot the masked environmental layers
 plot(environmentalLayersPres, axes = TRUE)
 
+# generate pseudo-absences
+absences <- pseudoAbsences(rasterLayers = environmentalLayersPres, presences = presences, n = 1000)
+# combine presences and absences into a unique object for modelling
+presences$PA <- 1
+absences$PA <- 0
+records <- rbind(presences, absences)
+
+# extract environmental values and make an object with all information to model
+modelData <- generateModelData(records, environmentalLayersPres)
+
+# fit a BRT model to the dataset
+model <- trainModel(modelData, algorithm = "brt")
+
+# predict the distribution to the present-day conditions
+predictionPres <- predictModel(model = model, newData = environmentalLayersPres)
+
+# map the predicted distribution
+plot(predictionPres$rasterLayer, main = "Present-day predicted distribution", col = rev(topo.colors(100)))
+
+# download layers for end-of-century conditions
+environmentalLayersFut <- download_multiple_layers(variables = variables, experiment = c("ssp245"),
+                                                   decade = c(2090), longitude = c(-15, 45), latitude = c(25, 50))
+# plot layers
+plot(environmentalLayersFut, axes = TRUE)
+
 # crop the environmental layers to the extent of the study region
 environmentalLayersFut <- crop(environmentalLayersFut, myStudyRegion)
 
@@ -309,33 +339,16 @@ plot(environmentalLayersFut, axes = TRUE)
 # test if names are the same
 all.equal(names(environmentalLayersPres), names(environmentalLayersFut))
 
+names(environmentalLayersPres)
+names(environmentalLayersFut)
+
 # assign new names to the datasets
-names(environmentalLayersPres) <- c("Temperature", "Oxygen", "Productivity")
 names(environmentalLayersFut) <- c("Temperature", "Oxygen", "Productivity")
 
 # test if names are the same
 all.equal(names(environmentalLayersPres), names(environmentalLayersFut))
 
-# generate pseudo-absences
-absences <- pseudoAbsences(rasterLayers = environmentalLayersPres, presences = presences, n = 1000)
-# combine presences and absences into a unique object for modelling
-presences$PA <- 1
-absences$PA <- 0
-records <- rbind(presences, absences)
-
-# extract environmental values and make an object with all information to model
-modelData <- generateModelData(records, envConditions = environmentalLayersPres)
-
-# fit a BRT model to the dataset
-model <- trainModel(modelData, algorithm = "brt")
-
-# predict the distribution to the present-day conditions
-predictionPres <- predictModel(model = model, newData = environmentalLayersPres)
-
-# map the predicted distribution
-plot(predictionPres$rasterLayer, main = "Present-day predicted distribution", col = rev(topo.colors(100)))
-
-# predict the distribution to the present-day conditions
+# predict the distribution to future conditions
 predictionFut <- predictModel(model = model, newData = environmentalLayersFut)
 
 # map the predicted distribution
@@ -353,16 +366,18 @@ plot(diffPrediction, main = "Difference in predicted distribution (SSP2-4.5)", c
 
 # load libraries
 library(terra)
+library(tidyterra)
+library(ggplot2)
 library(bDSSDMTools)
 
 # load a vector defining global landmasses
 landmass <- vect("../Data/Vector data/Landmass/landmass.shp")
 
 # read occurrence records (presences)
-presences <- getExternalDataGbif(taxa = "Undaria pinnatifida", getCitation = TRUE)
+presences <- getExternalDataObis(taxa = "Undaria pinnatifida", getCitation = TRUE)
 
 # transform data.frame into a spatial object
-presences <- vect(presences, geom = c("Lon", "Lat"))
+presences <- vect(presences, geom = c("Lon", "Lat"), crs = "EPSG:4326")
 
 # load a vector defining global landmasses
 landmass <- vect("../Data/Vector data/Landmass/landmass.shp")
@@ -387,7 +402,7 @@ plot(environmentalLayersInv, axes = TRUE)
 
 # develop a study region layer
 nativeStudyRegion <- studyRegion(rasterLayers = environmentalLayersNative, presences = presences,
-                                 distanceThreshold = 5e+05, intertidalLayer = "../Data/Raster data/CoastLine.tif")
+                                 distanceThreshold = 5e+05, coastalLayer = "../Data/Raster data/CoastLine.tif")
 
 # inspect the study region layer
 plot(nativeStudyRegion, main = "Native study region", col = "#979797", axes = TRUE)
@@ -395,7 +410,7 @@ plot(presences, col = "#043259", pch = 16, cex = 0.5, add = TRUE)
 
 # develop a study region layer
 nonNativeStudyRegion <- studyRegion(rasterLayers = environmentalLayersInv, presences = presences,
-                                    distanceThreshold = Inf, intertidalLayer = "../Data/Raster data/CoastLine.tif")
+                                    distanceThreshold = Inf, coastalLayer = "../Data/Raster data/CoastLine.tif")
 # inspect the study region layer
 plot(nonNativeStudyRegion, main = "Non-native study region", col = "#979797", axes = TRUE)
 plot(presences, col = "#043259", pch = 16, cex = 0.5, add = TRUE)
@@ -430,7 +445,7 @@ absences$PA <- 0
 records <- rbind(presences, absences)
 
 # extract environmental values and make an object with all information to model
-modelData <- generateModelData(records, envConditions = environmentalLayersNative)
+modelData <- generateModelData(records, environmentalLayersNative)
 
 # fit a brt model to the dataset
 model <- trainModel(modelData, algorithm = "brt")
@@ -450,4 +465,3 @@ plot(predictionInv$rasterLayer, main = "Non-native predicted species distributio
 # map the predicted distribution
 plot(predictionInv$rasterLayer, main = "Non-native predicted species distribution", col = rev(topo.colors(100)))
 plot(presences, col = "#043259", pch = 16, cex = 0.5, add = TRUE)
-

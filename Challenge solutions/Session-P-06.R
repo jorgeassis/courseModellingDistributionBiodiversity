@@ -12,11 +12,13 @@
 
 # load libraries
 library(terra)
+library(tidyterra)
+library(ggplot2)
 library(bDSSDMTools)
 
 # read occurrence records (presences) and transform to spatial object
 presences <- read.table("../Data/Text delimited/species_presence_records.csv", sep = ";", header = TRUE)
-presences <- vect(presences, geom = c("Lon", "Lat"))
+presences <- vect(presences, geom = c("Lon", "Lat"), crs = "EPSG:4326")
 
 # download layers for present conditions
 variables <- list(var1 = c("thetao", "mean", "depthmean"), var2 = c("o2", "mean", "depthmean"),
@@ -31,8 +33,8 @@ plot(environmentalLayers, axes = TRUE)
 myStudyRegion <- studyRegion(rasterLayers=environmentalLayers, # SpatRaster of layers
                              presences=presences, # presence records
                              distanceThreshold=200000, # distance from records in meters
-                             bathymetryLayer = "../Data/Raster data/Bathymetry.tif", # bathymetry layer
-                             depthPref=c(-15,-300)) # known vertical distribution
+                             topographyLayer = "../Data/Raster data/Bathymetry.tif", # bathymetry layer
+                             verticalPref=c(-15,-300)) # known vertical distribution
 
 # inspect the study region layer
 plot(myStudyRegion, main="Study region", col="#979797", axes=TRUE)
@@ -61,8 +63,8 @@ plot(landmassMed, main = "Species Records", col = "#D4D4D4", border = "#D4D4D4",
 plot(records, y = "PA", col = c("#c29431", "#043259"), pch = 16, cex = 0.5, add = TRUE)
 
 # extract environmental values and make an object with all information to model
-modelData <- generateModelData(records, envConditions = environmentalLayers, method = "random",
-                               kFolds = 10)
+modelData <- generateModelData(records, environmentalLayers, method = "random",
+                               bootstrapRounds = 10)
 
 # inspect the data partitioning
 modelData$plotDatasets
@@ -87,11 +89,13 @@ model$performance
 
 # load libraries
 library(terra)
+library(tidyterra)
+library(ggplot2)
 library(bDSSDMTools)
 
 # read occurrence records (presences) and transform to spatial object
 presences <- read.table("../Data/Text delimited/species_presence_records.csv", sep = ";", header = TRUE)
-presences <- vect(presences, geom = c("Lon", "Lat"))
+presences <- vect(presences, geom = c("Lon", "Lat"), crs = "EPSG:4326")
 
 # download layers for present conditions
 variables <- list(var1 = c("thetao", "mean", "depthmean"),
@@ -108,8 +112,8 @@ plot(environmentalLayers, axes = TRUE)
 myStudyRegion <- studyRegion(rasterLayers=environmentalLayers, # SpatRaster of layers
                              presences=presences, # presence records
                              distanceThreshold=200000, # distance from records in meters
-                             bathymetryLayer = "../Data/Raster data/Bathymetry.tif", # bathymetry layer
-                             depthPref=c(-15,-300)) # known vertical distribution
+                             topographyLayer = "../Data/Raster data/Bathymetry.tif", # bathymetry layer
+                             verticalPref=c(-15,-300)) # known vertical distribution
 
 # inspect the study region layer
 plot(myStudyRegion, main="Study region", col="#979797", axes=TRUE)
@@ -137,10 +141,18 @@ landmassMed <- crop(landmass, myStudyRegion)
 plot(landmassMed, main = "Species Records", col = "#D4D4D4", border = "#D4D4D4", axes = TRUE)
 plot(records, y = "PA", col = c("#c29431", "#043259"), pch = 16, cex = 0.5, add = TRUE)
 
+# Inspect spatial autocorrelation in the layers
+sacAnalysis <- sac(environmentalLayers)
+
+sacAnalysis$plot
+sacDist <- sacAnalysis$distance
+sacDist
+
 # extract environmental values and make an object with all information to model
-modelData <- generateModelData(records, envConditions = environmentalLayers,
+modelData <- generateModelData(records, environmentalLayers,
                                method = "blocks",
-                               kFolds = 10)
+                               bootstrapRounds = 10,
+                               sacDist = sacDist)
 
 # inspect the data partitioning
 modelData$plotDatasets
@@ -165,11 +177,13 @@ model$performance
 
 # load libraries
 library(terra)
+library(tidyterra)
+library(ggplot2)
 library(bDSSDMTools)
 
 # read occurrence records (presences) and transform to spatial object
 presences <- read.table("../Data/Text delimited/species_presence_records.csv", sep = ";", header = TRUE)
-presences <- vect(presences, geom = c("Lon", "Lat"))
+presences <- vect(presences, geom = c("Lon", "Lat"), crs = "EPSG:4326")
 
 # download layers for present conditions
 variables <- list(var1 = c("thetao", "mean", "depthmean"),
@@ -186,8 +200,8 @@ plot(environmentalLayers, axes = TRUE)
 myStudyRegion <- studyRegion(rasterLayers=environmentalLayers, # SpatRaster of layers
                              presences=presences, # presence records
                              distanceThreshold=200000, # distance from records in meters
-                             bathymetryLayer = "../Data/Raster data/Bathymetry.tif", # bathymetry layer
-                             depthPref=c(-15,-300)) # known vertical distribution
+                             topographyLayer = "../Data/Raster data/Bathymetry.tif", # bathymetry layer
+                             verticalPref=c(-15,-300)) # known vertical distribution
 
 # inspect the study region layer
 plot(myStudyRegion, main="Study region", col="#979797", axes=TRUE)
@@ -215,10 +229,18 @@ landmassMed <- crop(landmass, myStudyRegion)
 plot(landmassMed, main = "Species Records", col = "#D4D4D4", border = "#D4D4D4", axes = TRUE)
 plot(records, y = "PA", col = c("#c29431", "#043259"), pch = 16, cex = 0.5, add = TRUE)
 
+# Inspect spatial autocorrelation in the layers
+sacAnalysis <- sac(environmentalLayers)
+
+sacAnalysis$plot
+sacDist <- sacAnalysis$distance
+sacDist
+
 # extract environmental values and make an object with all information to model
-modelData <- generateModelData(records, envConditions = environmentalLayers,
+modelData <- generateModelData(records, environmentalLayers,
                                method = "blocks",
-                               kFolds = 10)
+                               bootstrapRounds = 10,
+                               sacDist = sacDist)
 
 # inspect the data partitioning
 modelData$plotDatasets
@@ -239,11 +261,13 @@ modelVarContrib$dataFrame
 
 # load libraries
 library(terra)
+library(tidyterra)
+library(ggplot2)
 library(bDSSDMTools)
 
 # read occurrence records (presences) and transform to spatial object
 presences <- read.table("../Data/Text delimited/species_presence_records.csv", sep = ";", header = TRUE)
-presences <- vect(presences, geom = c("Lon", "Lat"))
+presences <- vect(presences, geom = c("Lon", "Lat"), crs = "EPSG:4326")
 
 # download layers for present conditions
 variables <- list(var1 = c("thetao", "mean", "depthmean"), var2 = c("o2", "mean", "depthmean"),
@@ -259,8 +283,8 @@ plot(environmentalLayers, axes = TRUE)
 myStudyRegion <- studyRegion(rasterLayers=environmentalLayers, # SpatRaster of layers
                              presences=presences, # presence records
                              distanceThreshold=200000, # distance from records in meters
-                             bathymetryLayer = "../Data/Raster data/Bathymetry.tif", # bathymetry layer
-                             depthPref=c(-15,-300)) # known vertical distribution
+                             topographyLayer = "../Data/Raster data/Bathymetry.tif", # bathymetry layer
+                             verticalPref=c(-15,-300)) # known vertical distribution
 
 # inspect the study region layer
 plot(myStudyRegion, main="Study region", col="#979797", axes=TRUE)
@@ -288,9 +312,18 @@ landmassMed <- crop(landmass, myStudyRegion)
 plot(landmassMed, main = "Species Records", col = "#D4D4D4", border = "#D4D4D4", axes = TRUE)
 plot(records, y = "PA", col = c("#c29431", "#043259"), pch = 16, cex = 0.5, add = TRUE)
 
+# Inspect spatial autocorrelation in the layers
+sacAnalysis <- sac(environmentalLayers)
+
+sacAnalysis$plot
+sacDist <- sacAnalysis$distance
+sacDist
+
 # extract environmental values and make an object with all information to model
-modelData <- generateModelData(records, envConditions = environmentalLayers, method = "blocks",
-                               kFolds = 10)
+modelData <- generateModelData(records, environmentalLayers,
+                               method = "blocks",
+                               bootstrapRounds = 10,
+                               sacDist = sacDist)
 
 # inspect the data partitioning
 modelData$plotDatasets

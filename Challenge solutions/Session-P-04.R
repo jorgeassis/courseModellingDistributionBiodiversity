@@ -12,11 +12,14 @@
 
 # load libraries
 library(terra)
+library(ggplot2)
+library(tidyterra)
 library(bDSSDMTools)
 
 # download present-day layer
 variables <- list(var1 = c("thetao", "ltmax", "depthsurf"),
                   var1 = c("thetao", "ltmin", "depthsurf"))
+
 environmentalVariables <- download_multiple_layers(variables = variables,
                                                    experiment = c("baseline"),
                                                    decade = c(2010),
@@ -24,6 +27,18 @@ environmentalVariables <- download_multiple_layers(variables = variables,
                                                    latitude = c(25, 50))
 # plot layers
 plot(environmentalVariables, main = "Environmental variables", axes = TRUE)
+
+ggplot() +
+  geom_spatraster(data = environmentalVariables[[1]]) +
+  labs(title = "Sea surface temperature change (ltmax)") +
+  scale_fill_viridis_c(option = "plasma", direction = -1, na.value = "#E8E8E8") +
+  theme_minimal()
+
+ggplot() +
+  geom_spatraster(data = environmentalVariables[[2]]) +
+  labs(title = "Sea surface temperature change (ltmin)") +
+  scale_fill_viridis_c(option = "plasma", direction = -1, na.value = "#E8E8E8") +
+  theme_minimal()
 
 # --------------------------------------
 # --------------------------------------
@@ -52,6 +67,12 @@ temperatureAnomaly <- temperatureFuture - temperaturePresent
 
 # plot layers
 plot(temperatureAnomaly, main = "Temperature anomaly along the NE Pacific Ocean", axes = TRUE)
+
+ggplot() +
+  geom_spatraster(data = temperatureAnomaly) +
+  labs(title = "Sea surface temperature change (anomaly)") +
+  scale_fill_viridis_c(option = "plasma", direction = -1, na.value = "#E8E8E8") +
+  theme_minimal()
 
 # --------------------------------------
 # --------------------------------------
