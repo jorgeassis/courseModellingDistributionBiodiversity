@@ -204,8 +204,9 @@ trainModel <- function(modelData, algorithm ="brt", hyperparameters=NULL, monoto
                                     nrounds=hyperparameters.grid[m,"rounds"],
                                     nthread = 1, objective="binary:logistic")
 
-        newData.x <- trainData[model.m$feature_names]
-        newData.x =  xgboost::xgb.DMatrix(data = data.matrix(newData.x),  nthread = 1)
+        newData.x <- trainData[names(trainData)[!names(trainData) %in% "PA"]]
+        newData.x <- data.matrix(newData.x)
+        newData.x =  xgboost::xgb.DMatrix(data = newData.x,  nthread = 1)
         pred.train <- predict(model.m,trainData, type="response")
         newData.x =  xgboost::xgb.DMatrix(data = data.matrix(validationData[,setdiff(names(validationData),c("PA"))]),  nthread = 1)
         pred.validation <- predict(model.m,validationData, type="response")
@@ -276,7 +277,7 @@ trainModel <- function(modelData, algorithm ="brt", hyperparameters=NULL, monoto
                           bag.fraction=0.5,
                           var.monotone=monotonicity.m,
                           n.cores=1)
-      
+
       pred.test <- predict(model.m, newdata=testData, n.trees=model.m$n.trees, type="response")
 
     }
