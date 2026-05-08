@@ -143,7 +143,9 @@ trainModel <- function(modelData, algorithm ="brt", hyperparameters=NULL, monoto
 
     if( nrow(trainData) == 0 ) { next }
     if( nrow(validationData) == 0 ) { next }
+    if( nrow(testData) == 0 ) { next }
 
+    if( length(unique(testData$PA)) != 2 ) { next }
     if( length(unique(trainData$PA)) != 2 ) { next }
     if( length(unique(validationData$PA)) != 2 ) { next }
 

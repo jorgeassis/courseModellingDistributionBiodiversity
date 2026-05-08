@@ -91,7 +91,7 @@ generateModelData <- function(records, environmentalLayers, method="random", pro
   }
 
   modelData <- data.frame()
-  paRep <- 0
+  paRep <- 1
 
   while( paRep <= max(rep) ) {
 

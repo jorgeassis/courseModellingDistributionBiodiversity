@@ -50,12 +50,34 @@ download_multiple_layers <- function(variables, experiment, decade, latitude=NUL
     experiment <- combinations[i,4]
     decade <- combinations[i,5]
 
+    if( variable == "kdpar_mean" ) {
+      variable_string <- paste0("kdpar_mean_")
+    }
+    if( variable == "par_mean" ) {
+      variable_string <- paste0("par_mean_")
+    }
+    if( variable != "kdpar_mean" & variable != "par_mean" ) {
+      variable_string <- paste0(variable,"_")
+    }
+
     datasetLayers <- biooracler::list_layers()
-    datasetLayers.i <- datasetLayers[grepl(paste0(variable,"_"), datasetLayers$dataset_id),]
+    datasetLayers.i <- datasetLayers[grepl(variable_string, datasetLayers$dataset_id),]
     datasetLayers.i <- datasetLayers.i[grepl(experiment, datasetLayers.i$dataset_id),]
     datasetLayers.i <- datasetLayers.i[grepl(realm, datasetLayers.i$dataset_id),]
 
     if( nrow(datasetLayers.i) == 0 ) { next }
+
+    if( nrow(datasetLayers.i) != 1 ) {
+
+      if( variable == "par_mean" ) {
+        datasetLayers.i <- datasetLayers.i[!grepl("kdpar_mean", datasetLayers.i$dataset_id),]
+      }
+      if( variable == "kdpar_mean" ) {
+        datasetLayers.i <- datasetLayers.i[grepl("kdpar_mean", datasetLayers.i$dataset_id),]
+      }
+
+    }
+
     if( nrow(datasetLayers.i) != 1 ) { stop("Error :: 001") }
 
     var_name <- datasetLayers.i$dataset_id
@@ -76,7 +98,7 @@ download_multiple_layers <- function(variables, experiment, decade, latitude=NUL
     myDir <- paste0(tempdir(),"/",sample(1:100000000000,1))
     if( ! dir.exists(myDir) ) { dir.create(myDir, recursive = TRUE) }
 
-    predictor_var <- paste0(sub("_.*", "", datasetLayers.i$dataset_id),"_",predictor)  
+    predictor_var <- paste0(sub("_.*", "", datasetLayers.i$dataset_id),"_",predictor)
 
     if( grepl("kdpar", predictor_var) ) {
       predictor_var <- gsub("kdpar","kdpar_mean", predictor_var)
