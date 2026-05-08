@@ -100,11 +100,11 @@ download_multiple_layers <- function(variables, experiment, decade, latitude=NUL
 
     predictor_var <- paste0(sub("_.*", "", datasetLayers.i$dataset_id),"_",predictor)
 
-    if( grepl("kdpar", predictor_var) ) {
-      predictor_var <- gsub("kdpar","kdpar_mean", predictor_var)
+    if( grepl("kdpar_", predictor_var) ) {
+      predictor_var <- gsub("kdpar_","kdpar_mean_", predictor_var)
     }
-    if( grepl("parmean", predictor_var) ) {
-      predictor_var <- gsub("par","par_mean", predictor_var)
+    if( grepl("par_", predictor_var) ) {
+      predictor_var <- gsub("par_","par_mean_", predictor_var)
     }
 
     biooracler::download_layers(dataset_id=datasetLayers.i$dataset_id,
