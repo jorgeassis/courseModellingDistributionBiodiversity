@@ -130,8 +130,6 @@ generateModelData <- function(records, environmentalLayers, method="random", pro
 
     if( length(train.id) == 0 | length(test.id) == 0 | length(val.id) == 0 ) { next }
 
-    paRep <- paRep + 1
-
     modelData.train <- data.frame( bootstrap=paRep, Set="train", recordsFolds.r[which(recordsFolds.r$membership %in% train.id),] )
     modelData.val <- data.frame( bootstrap=paRep, Set="validation", recordsFolds.r[which(recordsFolds.r$membership %in% val.id),] )
     modelData.test <- data.frame( bootstrap=paRep, Set="test", recordsFolds.r[which(recordsFolds.r$membership %in% test.id),] )
@@ -140,15 +138,19 @@ generateModelData <- function(records, environmentalLayers, method="random", pro
 
     modelData <- rbind(modelData, modelData.train, modelData.val, modelData.test)
 
+    paRep <- paRep + 1
+
   }
 
-  summary <- data.frame( dataset = c("train","validation","test"),
-                         presence = c( sum(modelData$Set == "train" & modelData$PA == 1 & modelData$bootstrap %in% 1),
-                                       sum(modelData$Set == "validation" & modelData$PA == 1 & modelData$bootstrap %in% 1),
-                                       sum(modelData$Set == "test" & modelData$PA == 1 & modelData$bootstrap %in% 1) ),
-                         absence = c( sum(modelData$Set == "train" & modelData$PA == 0 & modelData$bootstrap %in% 1),
-                                      sum(modelData$Set == "validation" & modelData$PA == 0& modelData$bootstrap %in% 1),
-                                      sum(modelData$Set == "test" & modelData$PA == 0 & modelData$bootstrap %in% 1) ) )
+  counts_long <- as.data.frame(table(modelData$bootstrap, modelData$Set, modelData$PA))
+  colnames(counts_long) <- c("bootstrap", "Set", "PA", "Count")
+  counts_wide <- reshape(counts_long,
+                         idvar = c("bootstrap", "Set"),
+                         timevar = "PA",
+                         direction = "wide")
+  rownames(counts_wide) <- NULL
+  summary <- counts_wide
+  summary <- summary[order(summary$bootstrap),]
 
   # Make plot
   plots <- list()
@@ -184,11 +186,11 @@ generateModelData <- function(records, environmentalLayers, method="random", pro
     }
 
     plot <- plot + geom_point(data = combCoords,aes(x = Lon, y = Lat, color = Set),alpha = 0.8, size = 0.5) +
-                        scale_color_manual(values = random_colors) +
-                        labs(x = "", y = "", color = "Fold") +
-                        theme_minimal() +
-                        theme(legend.position = "none") +
-                        coord_sf()
+      scale_color_manual(values = random_colors) +
+      labs(x = "", y = "", color = "Fold") +
+      theme_minimal() +
+      theme(legend.position = "none") +
+      coord_sf()
 
     plots <- c(plots, list(plot))
 
