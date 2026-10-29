@@ -17,9 +17,43 @@ generateModelData(
   sacDist = NULL
 )
 }
+\arguments{
+\item{records}{A terra \code{SpatVector} of points with a numeric \code{PA} column.
+Presences are \code{1} and absences are \code{0}.}
+
+\item{environmentalLayers}{A terra \code{SpatRaster} of predictor layers.}
+
+\item{method}{\code{"random"} gives each record its own group. \code{"blocks"} uses
+\code{blockCV} squares whose side is \code{sacDist} kilometres.}
+
+\item{proportionTrain}{Share of presences placed in the training set.
+Absences are drawn afterwards from within each set.}
+
+\item{proportionTest}{Share of presences placed in the test set.}
+
+\item{proportionVal}{Share of presences placed in the validation set. The three
+proportions must sum to 1.}
+
+\item{bootstrapRounds}{Number of absence resamples. Each round becomes one
+\code{bootstrap} in the returned table.}
+
+\item{paMinimum}{Minimum number of absences in the training set. Training
+keeps at least this many, and at least \code{paRatio} absences for each
+training presence. Use a large value, such as \code{10000}, for MaxEnt.
+Validation and test do not use this minimum.}
+
+\item{paRatio}{Absences kept for each presence in the validation and test
+sets. Training uses the same ratio unless \code{paMinimum} asks for more. If a
+set does not contain enough absences, every absence in that set is kept.}
+
+\item{sacDist}{Block side in kilometres, used when \code{method} is \code{"blocks"}.}
+}
 \description{
-splitting data into train/validation/test sets using either random folds or
-spatial blocks, optionally creating multiple data replicates by re-sampling
-absences (useful when presence data is scarce), extracting environmental
-predictor values, and generating plots of the data splits.
+Presences are split into training, validation, and test sets, either at
+random or by spatial blocks. Absences are then drawn inside each set.
+Validation and test keep \code{paRatio} absences per presence. Training keeps
+that ratio as well, and at least \code{paMinimum} absences, so a large MaxEnt
+background does not unbalance the performance sets. Each bootstrap round
+draws a new absence sample. Environmental values are extracted for the
+records that remain, and the splits are plotted.
 }

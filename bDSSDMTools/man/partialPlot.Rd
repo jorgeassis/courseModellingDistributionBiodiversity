@@ -6,11 +6,21 @@
 \usage{
 partialPlot(model, modelData, variablePlot)
 }
+\arguments{
+\item{model}{A model, or the list returned by \code{\link[=trainModel]{trainModel()}}.}
+
+\item{modelData}{A data frame of records, or the list returned by
+\code{\link[=generateModelData]{generateModelData()}}. It must contain \code{PA} and \code{variablePlot}.}
+
+\item{variablePlot}{Name of the predictor to vary. Other predictors are held
+at their mean.}
+}
 \description{
 Calculates and plots the partial dependence (response curve) for a specified
-predictor variable from an ensemble of model.is. It shows how the predicted
-suitability (averaged across model.is) changes across the observed range of the
+predictor variable from an ensemble of models. It shows how the predicted
+probability, averaged across models, changes across the observed range of the
 chosen variable, while holding other predictor variables constant at their mean
-values. Optionally calculates potential threshold/tipping points. Includes a
-rug plot showing the distribution of the variable for presence points.
+values. Predictions that are already probabilities are not transformed again.
+The curve is not forced to be monotonic. Includes a rug plot showing the
+distribution of the variable for presence points.
 }

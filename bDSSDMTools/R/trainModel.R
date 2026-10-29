@@ -9,17 +9,31 @@
 #' is evaluated using an ensemble (average) prediction from all repetition models within a fold.
 #' Finally, it aggregates performance metrics across folds.
 #'
+#' @param modelData A data frame with `bootstrap`, `Set`, and `PA` columns, or
+#'   the list returned by [generateModelData()].
+#' @param algorithm One of `"glm"`, `"brt"`, `"xgboost"`, or `"maxent"`.
+#' @param hyperparameters A named list of values to try. `NULL` uses one
+#'   default setting for the chosen algorithm.
+#' @param monotonicity Numeric constraints, one per predictor, for `"brt"` and
+#'   `"xgboost"`. `NULL` leaves every predictor unconstrained.
+#' @param reclassCriteria Threshold rule passed to [modelPerformance()] when
+#'   the test set is scored.
 #' @export
-#' @importFrom stats glm binomial predict predict.glm aggregate sd family formula coefficients lm na.omit var cor complete.cases kmeans dist as.matrix quantile model.matrix t.test weighted.mean formula terms reformulate update delete.response get_all_vars
-#' @importFrom gbm gbm predict.gbm # Changed from gbm::gbm because of import tag convention
-#' @importFrom maxnet maxnet predict.maxnet
-#' @importFrom xgboost xgb.DMatrix xgboost predict.xgb.Booster
-#' @importFrom methods is
+#' @importFrom stats glm binomial predict aggregate sd
+#' @importFrom gbm gbm predict.gbm
+#' @importFrom maxnet maxnet
+#' @importFrom xgboost xgb.DMatrix xgboost
 #'
 
 trainModel <- function(modelData, algorithm ="brt", hyperparameters=NULL, monotonicity=NULL,reclassCriteria="minimumTrain95") {
 
-  if( ! algorithm %in% c("adaboost","brt","xgboost","glm","maxent") ) { stop("Error :: Unknown algorithm") }
+  warnOption <- options(warn = -1)
+  on.exit(options(warnOption), add = TRUE)
+
+  if (algorithm == "adaboost") {
+    stop("Error :: adaboost is not implemented. Use brt, xgboost, glm, or maxent.")
+  }
+  if( ! algorithm %in% c("brt","xgboost","glm","maxent") ) { stop("Error :: Unknown algorithm. Use brt, xgboost, glm, or maxent.") }
 
   if( "modelData" %in% names(modelData) ) { modelData <- modelData$modelData }
 
@@ -29,10 +43,6 @@ trainModel <- function(modelData, algorithm ="brt", hyperparameters=NULL, monoto
 
     if( algorithm == "brt" ) {
       hyperparameters.grid <- expand.grid(learning.rate=0.01 , interaction.depth=3, n.trees=1000)
-    }
-
-    if( algorithm == "adaboost" ) {
-      hyperparameters.grid <- expand.grid(shrinkage=0.1 , degf=5, mstop=50)
     }
 
     if( algorithm == "xgboost" ) {
@@ -63,19 +73,6 @@ trainModel <- function(modelData, algorithm ="brt", hyperparameters=NULL, monoto
         hyperparameters.grid[,"n.trees"] <- 1000
       }
 
-    }
-
-    if( algorithm == "adaboost" ) {
-
-      if( ! "shrinkage" %in% names(hyperparameters.grid) ) {
-        hyperparameters.grid[,"shrinkage"] <- 0.1
-      }
-      if( ! "degf" %in% names(hyperparameters.grid) ) {
-        hyperparameters.grid[,"degf"] <- 5
-      }
-      if( ! "mstop" %in% names(hyperparameters.grid) ) {
-        hyperparameters.grid[,"mstop"] <- 50
-      }
     }
 
     if( algorithm == "xgboost" ) {
@@ -151,6 +148,7 @@ trainModel <- function(modelData, algorithm ="brt", hyperparameters=NULL, monoto
 
     hyperparameters.validation.m <- data.frame()
     hyperparameters.train.m <- data.frame()
+    gridRow <- integer()
 
     for( m in 1:nrow(hyperparameters.grid)) {
 
@@ -183,17 +181,19 @@ trainModel <- function(modelData, algorithm ="brt", hyperparameters=NULL, monoto
 
       if( algorithm == "maxent" ) {
 
-        tryCatch( model.m <- maxnet::maxnet(p=trainData$PA,
-                                    data=trainData[,which(names(trainData) != "PA")],
-                                    regmult=hyperparameters.grid[m,"betamultiplier"],
-                                    classes=hyperparameters.grid[m,"feature"]), error=function(e) { Error <<- TRUE })
+        model.m <- tryCatch(
+          maxnet::maxnet(p=trainData$PA,
+                         data=trainData[,which(names(trainData) != "PA")],
+                         regmult=hyperparameters.grid[m,"betamultiplier"],
+                         classes=hyperparameters.grid[m,"feature"]),
+          error = function(e) e
+        )
+        if (inherits(model.m, "error")) next
 
         pred.train <- predict(model.m, newdata=trainData, type="cloglog")
         pred.validation <- predict(model.m, newdata=validationData, type="cloglog")
 
       }
-
-      if( algorithm == "adaboost" ) { stop("!")}
 
       if(algorithm == "xgboost") {
 
@@ -203,6 +203,7 @@ trainModel <- function(modelData, algorithm ="brt", hyperparameters=NULL, monoto
                                     monotone_constraints=monotonicity.m[names(trainData[,which(colnames(trainData) != "PA")])],
                                     max_depth = hyperparameters.grid[m,"interaction.depth"],
                                     min_split_loss=hyperparameters.grid[m,"min_split_loss"],
+                                    learning_rate=hyperparameters.grid[m,"shrinkage"],
                                     nrounds=hyperparameters.grid[m,"rounds"],
                                     nthread = 1, objective="binary:logistic")
 
@@ -221,8 +222,11 @@ trainModel <- function(modelData, algorithm ="brt", hyperparameters=NULL, monoto
       hyperparameters.train <- hyperparameters.train[which.max(hyperparameters.train[,performanceIndex]),,drop=FALSE]
       hyperparameters.validation.m <- rbind(hyperparameters.validation.m, hyperparameters.validation)
       hyperparameters.train.m <- rbind(hyperparameters.train.m, hyperparameters.train)
+      gridRow <- c(gridRow, m)
 
     }
+
+    if (nrow(hyperparameters.validation.m) == 0) next
 
     if( class(hyperparameters.validation.m)[1] != "data.frame") { hyperparameters.validation.m <- t(hyperparameters.validation.m)}
     if( class(hyperparameters.train.m)[1] != "data.frame") { hyperparameters.train.m <- t(hyperparameters.train.m)}
@@ -230,11 +234,12 @@ trainModel <- function(modelData, algorithm ="brt", hyperparameters=NULL, monoto
     hyperparameters.validation.m <- data.frame(fold=i,hyperparameters.validation.m)
     hyperparameters.train.m <- data.frame(fold=i,hyperparameters.train.m)
 
-    hyperparameters.validation.m.index <- hyperparameters.validation.m[,performanceIndex]
-    m <- which( hyperparameters.validation.m.index == hyperparameters.validation.m.index[which.max(hyperparameters.validation.m.index)])[1]
+    hyperparameters.validation.m.index <- hyperparameters.validation.m[, performanceIndex]
+    chosen <- which( hyperparameters.validation.m.index == hyperparameters.validation.m.index[which.max(hyperparameters.validation.m.index)])[1]
+    m <- gridRow[chosen]
     hyperparameters.m <- hyperparameters.grid[m,]
-    performance.validation.m <- hyperparameters.validation.m[m,]
-    performance.train.m <- hyperparameters.train.m[m,]
+    performance.validation.m <- hyperparameters.validation.m[chosen,]
+    performance.train.m <- hyperparameters.train.m[chosen,]
 
     modelsHyperparameters <- rbind(modelsHyperparameters,data.frame(fold=i,hyperparameters.m))
     modelsValidationPerformance <- rbind(modelsValidationPerformance,performance.validation.m)
@@ -249,8 +254,6 @@ trainModel <- function(modelData, algorithm ="brt", hyperparameters=NULL, monoto
 
     }
 
-    if( algorithm == "adaboost" ) { stop("!") }
-
     if(algorithm == "xgboost") {
 
       trainData.x = rbind(trainData,validationData)
@@ -260,6 +263,7 @@ trainModel <- function(modelData, algorithm ="brt", hyperparameters=NULL, monoto
         monotone_constraints=monotonicity.m[names(trainData.x[,which(colnames(trainData.x) != "PA")])],
                           max_depth = hyperparameters.grid[m,"interaction.depth"],
                           min_split_loss=hyperparameters.grid[m,"min_split_loss"],
+                          learning_rate=hyperparameters.grid[m,"shrinkage"],
                           nrounds=hyperparameters.grid[m,"rounds"],
                           nthread = 1, objective="binary:logistic")
       #newData.x <- testData[model.m$feature_names]
@@ -303,9 +307,22 @@ trainModel <- function(modelData, algorithm ="brt", hyperparameters=NULL, monoto
 
   }
 
-  modelsTestPerformance[modelsTestPerformance < 0] <- NA
-  modelsValidationPerformance[modelsValidationPerformance < 0] <- NA
-  modelsTrainPerformance[modelsTrainPerformance < 0] <- NA
+  if (nrow(modelsTestPerformance) == 0) {
+    stop("Error :: no bootstrap replicate produced a model. Each replicate needs presences and absences in the train, validation, and test sets.")
+  }
+
+  maskNegative <- function(df) {
+    numericColumns <- vapply(df, is.numeric, logical(1))
+    numericColumns[names(df) %in% c("fold", "bootstrap")] <- FALSE
+    df[numericColumns] <- lapply(df[numericColumns], function(values) {
+      values[!is.na(values) & values < 0] <- NA
+      values
+    })
+    df
+  }
+  modelsTestPerformance <- maskNegative(modelsTestPerformance)
+  modelsValidationPerformance <- maskNegative(modelsValidationPerformance)
+  modelsTrainPerformance <- maskNegative(modelsTrainPerformance)
 
   res <- rbind(data.frame(dataset="test",index="Average",t( apply(modelsTestPerformance[,-which(colnames(modelsTestPerformance) %in% c("fold","criteria"))],2,mean,na.rm=T) )),
                data.frame(dataset="test",index="sd",t( apply(modelsTestPerformance[,-which(colnames(modelsTestPerformance) %in% c("fold","criteria"))],2,sd,na.rm=T) )),

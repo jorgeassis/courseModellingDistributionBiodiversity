@@ -5,17 +5,19 @@
 #' from the 'sdm' and 'ecospat' packages and calculates AIC and R-squared.
 #' Allows selection of metrics based on a specific threshold criterion.
 #'
-#'
+#' @param observed Numeric vector of observed presence (`1`) and absence (`0`).
+#' @param predicted Numeric vector of predicted probabilities, aligned with
+#'   `observed`.
+#' @param index Threshold rule used to choose one row of the result:
+#'   `"auc"`, `"auc.prg"`, `"tss"`, `"boyce"`, `"minimumTrain"`,
+#'   `"minimumTrain95"`, or `"minimumTrain90"`.
 #' @export
 #' @importFrom sdm evaluates
-#' @importFrom stats glm binomial AIC lm na.omit var cor complete.cases kmeans dist as.matrix sd quantile aggregate family formula coefficients
+#' @importFrom stats glm binomial AIC deviance coef
 #' @importFrom ecospat ecospat.boyce
 #'
 
 modelPerformance <- function(observed,predicted,index) {
-
-  library(ggplot2)
-  library(grid)
 
   precision_gain = function(TP,FN,FP,TN) {
     n_pos = TP+FN
@@ -237,8 +239,8 @@ modelPerformance <- function(observed,predicted,index) {
       ggplot2::ggsave(paste("prg_r_test_fig_unit/prg_r_test_",i,".pdf",sep=""),p)
       prg_curve = round(prg_curve,5)
       auprg = round(calc_auprg(prg_curve),5)
-      write.csv(prg_curve,file=paste("prg_r_test_tab/prg_r_test_",i,".csv",sep=""),row.names=FALSE)
-      write.csv(data.frame(auprg=auprg),file=paste("prg_r_test_auprg/prg_r_test_",i,".csv",sep=""),row.names=FALSE)
+      utils::write.csv(prg_curve,file=paste("prg_r_test_tab/prg_r_test_",i,".csv",sep=""),row.names=FALSE)
+      utils::write.csv(data.frame(auprg=auprg),file=paste("prg_r_test_auprg/prg_r_test_",i,".csv",sep=""),row.names=FALSE)
     }
   }
 
@@ -268,17 +270,26 @@ modelPerformance <- function(observed,predicted,index) {
                                      omission.rate=predicted.accuracy@threshold_based$ommission,
                                      sensitivity=predicted.accuracy@threshold_based$sensitivity,
                                      specificity=predicted.accuracy@threshold_based$specificity,
-                                     prop.correct=predicted.accuracy@threshold_based$ommission + predicted.accuracy@threshold_based$commission - 1,
+                                     prop.correct=(predicted.accuracy@threshold_based$sensitivity * sum(observed == 1) + predicted.accuracy@threshold_based$specificity * sum(observed == 0)) / length(observed),
                                      Kappa=predicted.accuracy@threshold_based$Kappa,
                                      aicc=NA,
                                      deviance=NA,
                                      boyce=NA,
                                      tss=predicted.accuracy@threshold_based$sensitivity + predicted.accuracy@threshold_based$specificity - 1,
-                                     prevalence.obs=sum(observed == 1) / sum(observed == 0),
+                                     prevalence.obs=sum(observed == 1) / length(observed),
                                      prevalence.pred=predicted.accuracy@threshold_based$prevalence)
     
-    predicted.accuracy$aicc <- AIC(glm(observed~predicted, family = binomial))
-    predicted.accuracy$deviance <- summary(lm(observed~predicted))$r.squared
+    glmFit <- tryCatch(stats::glm(observed ~ predicted, family = stats::binomial()), error = function(e) NULL)
+    if (is.null(glmFit)) {
+      predicted.accuracy$aicc <- NA_real_
+      predicted.accuracy$deviance <- NA_real_
+    } else {
+      k <- length(stats::coef(glmFit))
+      nObs <- length(observed)
+      aic <- stats::AIC(glmFit)
+      predicted.accuracy$aicc <- if (nObs > k + 1) aic + (2 * k * (k + 1)) / (nObs - k - 1) else aic
+      predicted.accuracy$deviance <- stats::deviance(glmFit)
+    }
 
     boyce.a <- predicted
     boyce.a <- boyce.a[!is.na(boyce.a)]
@@ -287,23 +298,18 @@ modelPerformance <- function(observed,predicted,index) {
 
     if( length(boyce.p) == 1) { boyce.p <- c(boyce.p-0.01,boyce.p-0.005,boyce.p,boyce.p+0.005,boyce.p+0.01) }
 
-    tryCatch( boyce.value <- ecospat::ecospat.boyce(boyce.a , boyce.p ,PEplot=FALSE)$Spearman.cor, error=function(e) { Error <<- TRUE })
-    tryCatch( boyce.value <- ecospat::ecospat.boyce(boyce.a , boyce.p ,PEplot=FALSE)$cor, error=function(e) { Error <<- TRUE })
-    if( is.null(boyce.value) ) { boyce.value <- NA }
-
-    val <- mean(boyce.p,na.rm=T)
-
-    while( is.na(boyce.value) ) {
-
-      val <- val - 0.001
-
-      tryCatch( boyce.value <- ecospat::ecospat.boyce(boyce.a , c(boyce.p, val, val) ,PEplot=FALSE)$Spearman.cor, error=function(e) { Error <<- TRUE })
-      tryCatch( boyce.value <- ecospat::ecospat.boyce(boyce.a , c(boyce.p, val, val) ,PEplot=FALSE)$cor, error=function(e) { Error <<- TRUE })
-      if( is.null(boyce.value) ) { boyce.value <- NA }
-
-      if( val < 0 ) { boyce.value <- 0; break }
-
+    boyce.value <- NA_real_
+    if (length(boyce.p) > 0 && length(boyce.a) > 1) {
+      boyceFit <- tryCatch(
+        ecospat::ecospat.boyce(boyce.a, boyce.p, PEplot = FALSE),
+        error = function(e) NULL
+      )
+      if (!is.null(boyceFit)) {
+        boyce.value <- boyceFit$Spearman.cor
+        if (is.null(boyce.value)) boyce.value <- boyceFit$cor
+      }
     }
+    if (is.null(boyce.value) || length(boyce.value) != 1 || !is.finite(boyce.value)) boyce.value <- NA_real_
 
     predicted.accuracy$boyce <- boyce.value
 

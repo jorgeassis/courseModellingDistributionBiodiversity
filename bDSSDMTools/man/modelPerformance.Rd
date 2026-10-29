@@ -6,6 +6,16 @@
 \usage{
 modelPerformance(observed, predicted, index)
 }
+\arguments{
+\item{observed}{Numeric vector of observed presence (\code{1}) and absence (\code{0}).}
+
+\item{predicted}{Numeric vector of predicted probabilities, aligned with
+\code{observed}.}
+
+\item{index}{Threshold rule used to choose one row of the result:
+\code{"auc"}, \code{"auc.prg"}, \code{"tss"}, \code{"boyce"}, \code{"minimumTrain"},
+\code{"minimumTrain95"}, or \code{"minimumTrain90"}.}
+}
 \description{
 Evaluates model predictions against observed presence/absence values using
 various threshold-dependent and independent metrics. It utilizes functions

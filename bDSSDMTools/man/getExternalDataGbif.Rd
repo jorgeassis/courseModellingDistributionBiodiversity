@@ -6,9 +6,21 @@
 \usage{
 getExternalDataGbif(taxa, getCitation = TRUE)
 }
+\arguments{
+\item{taxa}{Scientific name with at least a genus and a specific epithet.}
+
+\item{getCitation}{If \code{TRUE}, add access rights and a bibliographic citation
+for each dataset.}
+}
+\value{
+A data frame with scientific name, coordinates, date, access rights,
+and citation. Returns \code{NULL} when GBIF has no matching records.
+}
 \description{
 Fetches species occurrence records from the Global Biodiversity Information
-Facility (GBIF). It handles potentially large datasets by downloading
-records in chunks if the total count exceeds a threshold. Optionally retrieves
-dataset citation information.
+Facility (GBIF). At most 100,000 georeferenced records are downloaded.
+Smaller sets are downloaded with \code{dismo}. Larger sets are read from the GBIF
+occurrence search API, which cannot return more than 100,000 records, and
+the first 100,000 are kept. Optionally retrieves dataset citation
+information.
 }

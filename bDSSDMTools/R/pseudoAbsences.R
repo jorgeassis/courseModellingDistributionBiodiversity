@@ -4,14 +4,18 @@
 #' from the non-NA cells of a template raster layer, while excluding areas
 #' within a specified buffer distance around known presence points.
 #'
+#' @param rasterLayers A terra `SpatRaster`. The first layer supplies the cells
+#'   that can be sampled.
+#' @param presences A terra `SpatVector` of presence points. Cells within 50 km
+#'   of these points are not sampled.
+#' @param n Number of pseudo-absence points to return.
 #' @export
-#' @importFrom terra SpatRaster SpatVector crs buffer rasterize values `values<-` xyFromCell vect is.projected ncell `[` subset `names<-` units `units<-` wrap unwrap deepcopy `ext<-` ext maths Compare Logic Arith `Arith,SpatRaster,SpatRaster-method` `Arith,SpatRaster,numeric-method` `Arith,numeric,SpatRaster-method` `Compare,SpatRaster,numeric-method` `Compare,SpatRaster,SpatRaster-method` `Compare,numeric,SpatRaster-method` `Logic,SpatRaster,logical-method` `Logic,SpatRaster,SpatRaster-method` `Logic,!SpatRaster-method` subset extract `subset,SpatRaster,numeric-method` `subset,SpatRaster,missing-method` `extract,SpatRaster,SpatVector-method` `extract,SpatRaster,matrix-method` `is.na,SpatRaster-method` `anyNA,SpatRaster-method`
-#' @importFrom methods is
+#' @importFrom terra values xyFromCell vect
 
 pseudoAbsences <- function(rasterLayers,presences,n=1000) {
 
   shape <- rasterLayers[[1]]
-  crs(presences) <- crs(shape)
+  terra::crs(presences) <- terra::crs(shape)
 
   # Make a buffer on presences using distanceThreshold in meters
   presencesBuffer <- terra::buffer(presences, width=50000)

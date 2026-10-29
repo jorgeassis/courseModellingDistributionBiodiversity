@@ -6,6 +6,13 @@
 \usage{
 backgroundInformation(rasterLayers, n = 10000)
 }
+\arguments{
+\item{rasterLayers}{A terra \code{SpatRaster}. The first layer supplies the cells
+that can be sampled.}
+
+\item{n}{Number of background points to return. Fewer are returned when the
+raster has fewer non-NA cells.}
+}
 \description{
 Samples a specified number of random background points from the non-NA cells
 within the spatial extent defined by the input raster layers. The first layer

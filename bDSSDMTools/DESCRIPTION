@@ -1,18 +1,16 @@
 Package: bDSSDMTools
-Title: What the Package Does (One Line, Title Case)
+Title: Tools for Modelling Biodiversity Distributions
 Version: 0.0.0.9000
-Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"),
-           comment = c(ORCID = "YOUR-ORCID-ID"))
-Description: What the package does (one paragraph).
-License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
-    license
+Authors@R:
+    person("Jorge", "Assis", email = "jorgemfa@gmail.com", role = c("aut", "cre"))
+Description: Downloads environmental and occurrence data, builds study
+    datasets, trains and evaluates species distribution models, and compares
+    ecological niches under environmental change.
+License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.3
+RoxygenNote: 7.3.2
 Imports: 
-    gstat,
-    sf,
     terra,
     tidyterra,
     plyr,
@@ -21,6 +19,8 @@ Imports:
     jsonlite,
     robis,
     RJSONIO,
+    ade4,
+    nicheROVER,
     dismo,
     sdm,
     sp,

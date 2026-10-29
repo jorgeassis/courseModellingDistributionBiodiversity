@@ -1,19 +1,24 @@
 #' Generate Partial Dependence Plot (Response Curve)
 #'
 #' Calculates and plots the partial dependence (response curve) for a specified
-#' predictor variable from an ensemble of model.is. It shows how the predicted
-#' suitability (averaged across model.is) changes across the observed range of the
+#' predictor variable from an ensemble of models. It shows how the predicted
+#' probability, averaged across models, changes across the observed range of the
 #' chosen variable, while holding other predictor variables constant at their mean
-#' values. Optionally calculates potential threshold/tipping points. Includes a
-#' rug plot showing the distribution of the variable for presence points.
+#' values. Predictions that are already probabilities are not transformed again.
+#' The curve is not forced to be monotonic. Includes a rug plot showing the
+#' distribution of the variable for presence points.
 #'
+#' @param model A model, or the list returned by [trainModel()].
+#' @param modelData A data frame of records, or the list returned by
+#'   [generateModelData()]. It must contain `PA` and `variablePlot`.
+#' @param variablePlot Name of the predictor to vary. Other predictors are held
+#'   at their mean.
 #' @export
-#' @importFrom stats predict na.omit quantile coefficients lm sd glm binomial kmeans dist as.matrix aggregate family formula terms reformulate update delete.response get_all_vars weighted.mean t.test
-#' @importFrom ggplot2 ggplot aes geom_point geom_line theme labs element_text element_rect element_line element_blank margin annotate ggplotGrob is.ggplot rel
+#' @importFrom stats predict quantile
+#' @importFrom ggplot2 ggplot aes geom_point geom_line theme labs element_text element_rect element_line element_blank margin xlab ylab
 #' @importFrom gbm predict.gbm
-#' @importFrom maxnet predict.maxnet
-#' @importFrom xgboost xgb.DMatrix predict.xgb.Booster
-#' @importFrom methods is
+#' @importFrom maxnet maxnet
+#' @importFrom xgboost xgboost
 #'
 
 partialPlot <- function(model,modelData,variablePlot) {
@@ -40,12 +45,17 @@ partialPlot <- function(model,modelData,variablePlot) {
 
   if( variablePlot %in% colnames(modelData.i) == FALSE) { stop("Error :: variablePlot not in modelData") }
 
-  yLimits <- c(0,1)
-
-  logit2prob <- function(logit){
-    odds <- exp(logit)
-    prob <- odds / (1 + odds)
-    return(prob)
+  predictProbability <- function(fitted, newdata) {
+    cls <- class(fitted)
+    if (any(cls %in% c("xgboost", "xgb.Booster"))) {
+      as.numeric(predict(fitted, newdata))
+    } else if ("maxnet" %in% cls) {
+      as.numeric(predict(fitted, newdata, type = "cloglog"))
+    } else if ("gbm" %in% cls) {
+      as.numeric(predict(fitted, newdata, n.trees = fitted$n.trees, type = "response"))
+    } else {
+      as.numeric(predict(fitted, newdata, type = "response"))
+    }
   }
 
   ## -----------------------
@@ -63,20 +73,7 @@ partialPlot <- function(model,modelData,variablePlot) {
 
     model.i.i <- model.i[[m]]
 
-    if ( class(model.i.i)[1] %in% c("xgboost","xgb.Booster") ) {
-
-      matrixEffect.m <- data.to.plot
-      #matrixEffect.m <- matrixEffect.m[model.i$feature_names]
-      #matrixEffect.m <- xgb.DMatrix(data = data.matrix(matrixEffect.m), label = rep(0,nrow(matrixEffect.m)))
-      matrixEffect.m <- data.frame(Effect=predict(model.i.i,matrixEffect.m, type = "response") )
-
-    } else {
-
-      matrixEffect.m <- data.frame(Effect=predict(model.i.i,data.to.plot))
-
-    }
-
-    matrixEffect.m <- logit2prob(matrixEffect.m)
+    matrixEffect.m <- data.frame(Effect = predictProbability(model.i.i, data.to.plot))
 
     if( ! is.null(matrixEffect) ) { matrixEffect <- cbind(matrixEffect,data.frame(m=matrixEffect.m)) }
     if( is.null(matrixEffect) ) { matrixEffect <- data.frame(m=matrixEffect.m) }
@@ -85,13 +82,6 @@ partialPlot <- function(model,modelData,variablePlot) {
 
   data.to.plot <- data.frame(Variable=data.to.plot[,variablePlot],value=apply(matrixEffect,1,mean,na.rm=T))
   data.to.plot <- data.to.plot[sort(data.to.plot$Variable, index.return =T)$ix,]
-
-  if(data.to.plot[nrow(data.to.plot),2] > data.to.plot[1,2]) {
-    for( x in 2:nrow(data.to.plot) ) { if( data.to.plot[x,2] < data.to.plot[x-1,2] ) { data.to.plot[x,2] <- data.to.plot[x-1,2] } }
-  }
-  if(data.to.plot[nrow(data.to.plot),2] < data.to.plot[1,2]) {
-    for( x in 2:nrow(data.to.plot) ) { if( data.to.plot[x,2] > data.to.plot[x-1,2] ) { data.to.plot[x,2] <- data.to.plot[x-1,2] } }
-  }
 
   ## -----------------------
 
@@ -103,7 +93,7 @@ partialPlot <- function(model,modelData,variablePlot) {
 
   partialPlot <- ggplot() +
     geom_point( data=speciesDataUse,aes(x=x, y=y), size=2,shape=15, fill="gray", color="gray") +
-    geom_line( data=data.to.plot,aes(x=Variable, y=value),color="Black", size=0.5) +
+    geom_line( data=data.to.plot,aes(x=Variable, y=value),color="Black", linewidth=0.5) +
     themePlot +
     ggplot2::xlab(gsub("\\."," ",variablePlot)) + ggplot2::ylab("Effect on response (probability)")
 
@@ -124,8 +114,8 @@ partialPlot <- function(model,modelData,variablePlot) {
 
     usedThreshold <- min(speciesDataUse[,1])
     usedThresholdQ95 <- quantile(speciesDataUse[,1],0.05,na.rm=T)
-    extremeThreshold <- max(data.to.plot[data.to.plot$value <= min(data.to.plot$value) + quantile(data.to.plot$value,0.05),"Variable"])
-    if(extremeThreshold == Inf | extremeThreshold == -Inf) { extremeThreshold <- max(data.to.plot[data.to.plot$value <= min(data.to.plot$value),"Variable"]) }
+    nearMinimum <- data.to.plot$value <= min(data.to.plot$value) + quantile(data.to.plot$value, 0.05)
+    extremeThreshold <- if (any(nearMinimum, na.rm = TRUE)) max(data.to.plot$Variable[nearMinimum], na.rm = TRUE) else max(data.to.plot$Variable[data.to.plot$value <= min(data.to.plot$value)], na.rm = TRUE)
 
   }
 
@@ -133,8 +123,9 @@ partialPlot <- function(model,modelData,variablePlot) {
 
     usedThreshold <- max(speciesDataUse[,1])
     usedThresholdQ95 <- quantile(speciesDataUse[,1],0.95,na.rm=T)
-    extremeThreshold <- min(data.to.plot[data.to.plot$value <= min(data.to.plot$value) - quantile(data.to.plot$value,0.05) ,"Variable"])
-    if(extremeThreshold == Inf | extremeThreshold == -Inf) { extremeThreshold <- min(data.to.plot[data.to.plot$value <= min(data.to.plot$value) ,"Variable"]) }
+    belowMinimum <- data.to.plot$value <= min(data.to.plot$value) - quantile(data.to.plot$value, 0.05)
+    atMinimum <- data.to.plot$value <= min(data.to.plot$value)
+    extremeThreshold <- if (any(belowMinimum, na.rm = TRUE)) min(data.to.plot$Variable[belowMinimum], na.rm = TRUE) else min(data.to.plot$Variable[atMinimum], na.rm = TRUE)
 
   }
 

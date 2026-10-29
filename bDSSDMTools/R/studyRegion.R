@@ -36,8 +36,7 @@
 #'   defined study region and NA elsewhere. It retains the CRS of the input `rasterLayers`.
 #'   Returns NULL or stops if essential inputs are missing or invalid.
 #' @export
-#' @importFrom terra SpatRaster SpatVector crs buffer rasterize values `values<-` xyFromCell vect is.projected ncell `[` subset `names<-` units `units<-` wrap unwrap deepcopy `ext<-` ext maths Compare Logic Arith `Arith,SpatRaster,SpatRaster-method` `Arith,SpatRaster,numeric-method` `Arith,numeric,SpatRaster-method` `Compare,SpatRaster,numeric-method` `Compare,SpatRaster,SpatRaster-method` `Compare,numeric,SpatRaster-method` `Logic,SpatRaster,logical-method` `Logic,SpatRaster,SpatRaster-method` `Logic,!SpatRaster-method` subset extract mask classify crop trim rast `rast,character-method` project `project,SpatVector,character-method` `ifel` `NAflag<-` `NAflag` `crs` `is.na,SpatRaster-method` `anyNA,SpatRaster-method`
-#' @importFrom methods is
+#' @importFrom terra buffer rasterize vect ext mask classify crop trim rast compareGeom
 #'
 
 studyRegion <- function(rasterLayers, presences, distanceThreshold=200000, topographyLayer=NULL, verticalPref=NULL, coastalLayer=NULL, maskPolygon=NULL, trimToRegion=TRUE) {
@@ -45,8 +44,8 @@ studyRegion <- function(rasterLayers, presences, distanceThreshold=200000, topog
   forceStudyRegion <- numeric(0)
   nonStudyRegion <- numeric(0)
 
-  if( class(rasterLayers) != "SpatRaster" ) { stop("Error :: rasterLayers must be a SpatRaster object") }
-  if( class(presences) != "SpatVector" ) { stop("Error :: presences must be a SpatVector object") }
+  if (!inherits(rasterLayers, "SpatRaster")) { stop("Error :: rasterLayers must be a SpatRaster object") }
+  if (!inherits(presences, "SpatVector")) { stop("Error :: presences must be a SpatVector object") }
 
   shape <- rasterLayers[[1]]
   shape[] <- NA
@@ -54,7 +53,7 @@ studyRegion <- function(rasterLayers, presences, distanceThreshold=200000, topog
 
   if( ! is.null(maskPolygon)) {
 
-    if( class(maskPolygon) == "sf" ) { maskPolygon <- vect(maskPolygon) }
+    if (inherits(maskPolygon, "sf")) { maskPolygon <- vect(maskPolygon) }
     studyRegionLayer.i <- terra::mask(shape,maskPolygon)
     forceStudyRegion <- c(forceStudyRegion,which(!is.na(studyRegionLayer.i[][,1])))
 
@@ -62,7 +61,7 @@ studyRegion <- function(rasterLayers, presences, distanceThreshold=200000, topog
 
   if( ! is.null(coastalLayer) ) {
 
-    if( class(coastalLayer) == "character" ) { coastalLayer <- rast(coastalLayer) }
+    if (is.character(coastalLayer)) { coastalLayer <- rast(coastalLayer) }
 
     coastalLayer <- terra::crop(coastalLayer, shape)
     forceStudyRegion <- c(forceStudyRegion,which(!is.na(coastalLayer[][,1])))
@@ -73,7 +72,7 @@ studyRegion <- function(rasterLayers, presences, distanceThreshold=200000, topog
 
     if( length(verticalPref) != 2 ) { stop("Error :: verticalPref must be a vector of length 2") }
 
-    if( class(topographyLayer) == "character" ) { topographyLayer <- rast(topographyLayer) }
+    if (is.character(topographyLayer)) { topographyLayer <- rast(topographyLayer) }
 
     if( ext(topographyLayer) != ext(shape) ) { topographyLayer <- terra::crop(topographyLayer, shape) }
 
@@ -87,7 +86,7 @@ studyRegion <- function(rasterLayers, presences, distanceThreshold=200000, topog
 
   if( ! is.null(distanceThreshold) ) {
 
-    crs(presences, warn=FALSE) <- crs(shape)
+    terra::crs(presences, warn=FALSE) <- terra::crs(shape)
 
     # Make a buffer on presences using distanceThreshold in meters
     presencesBuffer <- terra::buffer(presences, width=distanceThreshold)

@@ -14,8 +14,41 @@ download_multiple_layers(
   directory = NULL
 )
 }
+\arguments{
+\item{variables}{Layer requests, as described above.}
+
+\item{experiment}{One Bio-ORACLE experiment name.}
+
+\item{decade}{One decade, such as \code{2010} or \code{2050}.}
+
+\item{latitude}{Optional numeric vector of length 2, minimum and maximum.}
+
+\item{longitude}{Optional numeric vector of length 2, minimum and maximum.}
+
+\item{exportRaster}{If \code{TRUE} (the default), return the downloaded layers
+as one SpatRaster. If \code{FALSE}, return the paths of the GeoTIFF files.}
+
+\item{directory}{Optional folder in which to also save the GeoTIFF files.}
+}
+\value{
+A SpatRaster when \code{exportRaster} is \code{TRUE}, or a character vector
+of file paths when it is \code{FALSE}.
+}
 \description{
-Downloads specified Bio-Oracle layers based on combinations of variables,
-predictors, experiments, realms, and decades. Allows spatial subsetting
-and optionally returns a combined multi-layer SpatRaster.
+Downloads Bio-ORACLE layers for one experiment and one decade. Each
+requested layer is a variable, a statistic, and a depth realm.
+}
+\details{
+\code{variables} can be any of:
+\itemize{
+\item a list of length-3 character vectors, \code{c(variable, predictor, realm)}
+\item one such vector
+\item a table with three columns, in that order
+\item a table with three rows (variable, predictor, realm) and one column per layer
+}
+
+Predictors are \code{ltmax}, \code{ltmin}, \code{mean}, \code{max}, \code{min}, and \code{range}.
+Realms are \code{depthsurf}, \code{depthmax}, \code{depthmean}, and \code{depthmin}.
+Experiments are \code{baseline}, \code{ssp119}, \code{ssp126}, \code{ssp245}, \code{ssp370},
+\code{ssp460}, and \code{ssp585}.
 }

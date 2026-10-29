@@ -12,6 +12,21 @@ trainModel(
   reclassCriteria = "minimumTrain95"
 )
 }
+\arguments{
+\item{modelData}{A data frame with \code{bootstrap}, \code{Set}, and \code{PA} columns, or
+the list returned by \code{\link[=generateModelData]{generateModelData()}}.}
+
+\item{algorithm}{One of \code{"glm"}, \code{"brt"}, \code{"xgboost"}, or \code{"maxent"}.}
+
+\item{hyperparameters}{A named list of values to try. \code{NULL} uses one
+default setting for the chosen algorithm.}
+
+\item{monotonicity}{Numeric constraints, one per predictor, for \code{"brt"} and
+\code{"xgboost"}. \code{NULL} leaves every predictor unconstrained.}
+
+\item{reclassCriteria}{Threshold rule passed to \code{\link[=modelPerformance]{modelPerformance()}} when
+the test set is scored.}
+}
 \description{
 Trains a specified Species Distribution Model algorithm (GLM, BRT, MaxEnt, XGBoost)
 using data prepared with cross-validation folds and repetitions (e.g., by

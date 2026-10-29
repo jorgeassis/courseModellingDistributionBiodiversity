@@ -16,8 +16,8 @@
 #'   an error might occur depending on subsequent usage (consider checking
 #'   `nlyr` of the result).
 #' @export
-#' @importFrom terra global subset SpatRaster nlyr values
-#' @importFrom stats var # Although used via fun="var", importing is safer practice
+#' @importFrom terra global subset nlyr
+#' @importFrom stats var
 #'
 #' @examples
 #' \dontrun{

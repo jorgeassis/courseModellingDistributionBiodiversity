@@ -6,11 +6,19 @@
 \usage{
 predictModel(model, newData)
 }
+\arguments{
+\item{model}{The list returned by \code{\link[=trainModel]{trainModel()}}.}
+
+\item{newData}{A terra \code{SpatRaster} of predictor layers. Layer names must
+include the predictors used to fit each model.}
+}
+\value{
+A list with \code{rasterLayer} (mean probability) and \code{rasterLayerSD}.
+}
 \description{
-Generates spatial predictions from an ensemble of SDM models (typically the
-output list from \code{trainModel}). It applies each individual model to the new
-environmental data (\code{newData} SpatRaster) using \code{terra::predict}. It then
-calculates the mean and standard deviation across all model predictions for
-each grid cell, providing an ensemble prediction and an uncertainty estimate.
-This approach avoids loading large rasters into memory.
+Generates spatial predictions from an ensemble of SDM models (the list
+returned by \code{\link[=trainModel]{trainModel()}}). Each model is applied with \code{terra::predict}
+in blocks, so the raster is not loaded into a single data frame. The
+result is the mean probability across models and the standard deviation
+of those probabilities. A single model has no standard deviation.
 }

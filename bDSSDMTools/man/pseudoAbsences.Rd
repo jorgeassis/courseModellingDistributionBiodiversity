@@ -6,6 +6,15 @@
 \usage{
 pseudoAbsences(rasterLayers, presences, n = 1000)
 }
+\arguments{
+\item{rasterLayers}{A terra \code{SpatRaster}. The first layer supplies the cells
+that can be sampled.}
+
+\item{presences}{A terra \code{SpatVector} of presence points. Cells within 50 km
+of these points are not sampled.}
+
+\item{n}{Number of pseudo-absence points to return.}
+}
 \description{
 Creates a SpatVector of pseudo-absence points by randomly sampling locations
 from the non-NA cells of a template raster layer, while excluding areas

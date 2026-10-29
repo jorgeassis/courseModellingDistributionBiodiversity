@@ -1,93 +1,132 @@
 #' Download Occurrence Data from GBIF
 #'
 #' Fetches species occurrence records from the Global Biodiversity Information
-#' Facility (GBIF). It handles potentially large datasets by downloading
-#' records in chunks if the total count exceeds a threshold. Optionally retrieves
-#' dataset citation information.
+#' Facility (GBIF). At most 100,000 georeferenced records are downloaded.
+#' Smaller sets are downloaded with `dismo`. Larger sets are read from the GBIF
+#' occurrence search API, which cannot return more than 100,000 records, and
+#' the first 100,000 are kept. Optionally retrieves dataset citation
+#' information.
 #'
+#' @param taxa Scientific name with at least a genus and a specific epithet.
+#' @param getCitation If `TRUE`, add access rights and a bibliographic citation
+#'   for each dataset.
+#'
+#' @return A data frame with scientific name, coordinates, date, access rights,
+#'   and citation. Returns `NULL` when GBIF has no matching records.
 #' @export
 #' @importFrom stringi stri_trans_general
 #' @importFrom dismo gbif
-#' @importFrom utils download.file tempfile
+#' @importFrom utils download.file URLencode
 #' @importFrom jsonlite fromJSON
 #' @importFrom plyr rbind.fill
 #' @importFrom rgbif gbif_citation
 #'
+getExternalDataGbif <- function(taxa, getCitation = TRUE) {
 
-getExternalDataGbif <- function(taxa, getCitation=TRUE) {
-
-  my_occs_gbif <- NULL
-  if( exists("my_occs_gbif") ) { rm(my_occs_gbif) }
-
+  if (missing(taxa) || !is.character(taxa) || length(taxa) != 1 || !nzchar(trimws(taxa))) {
+    stop("Error :: taxa must be a scientific name with a genus and a species")
+  }
   taxa <- stringi::stri_trans_general(str = taxa, id = "Latin-ASCII")
-  nRecords <- dismo::gbif(strsplit(as.character(taxa), " ")[[1]][1], strsplit(as.character(taxa), " ")[[1]][2], geo=T, removeZeros=T , download=FALSE, ntries=9)
+  nameParts <- strsplit(trimws(taxa), "\\s+")[[1]]
+  if (length(nameParts) < 2) {
+    stop("Error :: taxa must include at least a genus and a species")
+  }
+  genus <- nameParts[1]
+  species <- nameParts[2]
 
-  if( nRecords < 200000 ) { my_occs_gbif <- dismo::gbif(strsplit(as.character(taxa), " ")[[1]][1], strsplit(as.character(taxa), " ")[[1]][2], geo=T, removeZeros=T , download=TRUE, ntries=999, nrecs=100) }
+  nRecords <- dismo::gbif(genus, species, geo = TRUE, removeZeros = TRUE, download = FALSE, ntries = 9)
+  if (length(nRecords) != 1 || is.na(nRecords)) {
+    stop("Error :: GBIF did not return a record count for ", taxa)
+  }
 
-  if( nRecords >= 200000 ) {
+  # The occurrence search API rejects any request whose offset + limit exceeds 100000.
+  maxDownload <- 100000
 
-    seqListing <- seq(0,nRecords,by = 100)
-    if(max(seqListing) < nRecords) { seqListing <- c(seqListing,nRecords) }
-    parallelChunks <- data.frame(from = seqListing[-length(seqListing)], to = c(seqListing[-c(1,length(seqListing))] -1 , nRecords ) )
+  if (nRecords <= maxDownload) {
+    my_occs_gbif <- dismo::gbif(genus, species, geo = TRUE, removeZeros = TRUE, download = TRUE, ntries = 999, nrecs = 100)
+  } else {
+    cat("GBIF reports ", nRecords, " georeferenced records for ", taxa, ". Downloading the first ", maxDownload, ".\n", sep = "")
+    downloadTimeout <- options(timeout = 600)
+    on.exit(options(downloadTimeout), add = TRUE)
+    pageSize <- 300
+    offsets <- seq(0, maxDownload - 1L, by = pageSize)
+    tmpfile <- paste0(tempfile(), ".json")
+    on.exit(unlink(tmpfile), add = TRUE)
+    pages <- list()
+    scientificName <- utils::URLencode(paste(genus, species), reserved = TRUE)
 
-    tmpfile <- paste(tempfile(), ".json", sep = "")
-    my_occs_gbif <- data.frame()
-
-    for( ch in 1:nrow(parallelChunks)) {
-
-      error <- TRUE
-      chunck <- NULL
-
-      timestrial <- 0
-      while(error & timestrial < 10) {
-        tryCatch( chunck <- download.file(paste0("https://api.gbif.org/v1/occurrence/search?scientificname=",strsplit(as.character(taxa), " ")[[1]][1],"+",strsplit(as.character(taxa), " ")[[1]][2],"&offset=",parallelChunks[ch,1],"&limit=100"), tmpfile, quiet = TRUE) , error=function(e) { error <- TRUE })
-        if(!is.null("chunck")) { error <- FALSE }
-        timestrial <- timestrial + 1
+    for (offset in offsets) {
+      limit <- min(pageSize, maxDownload - offset)
+      url <- paste0(
+        "https://api.gbif.org/v1/occurrence/search?scientificname=", scientificName,
+        "&hasCoordinate=true&offset=", offset, "&limit=", limit
+      )
+      downloaded <- FALSE
+      for (attempt in seq_len(3)) {
+        status <- tryCatch(
+          utils::download.file(url, tmpfile, quiet = TRUE, mode = "wb"),
+          error = function(e) NA_integer_
+        )
+        if (is.finite(status) && status == 0 && file.exists(tmpfile) && file.info(tmpfile)$size > 0) {
+          downloaded <- TRUE
+          break
+        }
+        Sys.sleep(5)
+      }
+      if (!downloaded) {
+        cat("GBIF download stopped at offset ", offset, ". Returning the records already retrieved.\n", sep = "")
+        break
       }
 
       json <- scan(tmpfile, what = "character", quiet = TRUE, sep = "\n", encoding = "UTF-8")
       json <- chartr("\a\v", "  ", json)
-      x <- jsonlite::fromJSON(json)
+      x <- tryCatch(jsonlite::fromJSON(json), error = function(e) NULL)
+      if (is.null(x)) {
+        cat("GBIF download stopped at offset ", offset, ". Returning the records already retrieved.\n", sep = "")
+        break
+      }
       r <- x$results
-      r <- r[, !sapply(r, class) %in% c("data.frame", "list")]
+      if (is.null(r) || nrow(r) == 0) break
+      r <- r[, !vapply(r, function(column) inherits(column, c("data.frame", "list")), logical(1)), drop = FALSE]
       rownames(r) <- NULL
-      my_occs_gbif <- plyr::rbind.fill(my_occs_gbif,r)
+      pages[[length(pages) + 1]] <- r
+      if (isTRUE(x$endOfRecords)) break
+    }
 
+    my_occs_gbif <- if (length(pages) == 0) data.frame() else do.call(plyr::rbind.fill, pages)
+
+    if (nrow(my_occs_gbif) > 0) {
+      lon <- if ("decimalLongitude" %in% names(my_occs_gbif)) my_occs_gbif$decimalLongitude else my_occs_gbif$lon
+      lat <- if ("decimalLatitude" %in% names(my_occs_gbif)) my_occs_gbif$decimalLatitude else my_occs_gbif$lat
+      my_occs_gbif <- my_occs_gbif[!(lon == 0 | lat == 0), , drop = FALSE]
     }
   }
 
-  if( ! is.null(my_occs_gbif) & getCitation ) {
-
-    my_occs_gbif_all <- unique(my_occs_gbif$datasetKey)
-
-    for(z in 1:length(my_occs_gbif_all) ) {
-
-      invisible(capture.output(
-        z.Res <- gbif_citation(x=my_occs_gbif_all[z])
-      ))
-
-      my_occs_gbif[my_occs_gbif$datasetKey == my_occs_gbif_all[z] ,"accessRights"] <- ifelse(!is.null(z.Res$rights),z.Res$rights,"")
-
-      z.Res <- z.Res$citation$citation
-
-      my_occs_gbif[my_occs_gbif$datasetKey == my_occs_gbif_all[z],"bibliographicCitation"] <- z.Res
-
-    }
-
+  if (is.null(my_occs_gbif) || nrow(my_occs_gbif) == 0) {
+    cat("Data downloaded from GBIF\n")
+    cat("Taxa: ", taxa, "\n")
+    cat("Number of records: 0\n")
+    return(NULL)
   }
 
-  if( !is.null(my_occs_gbif)) { if(nrow(my_occs_gbif) == 0 ) { my_occs_gbif <- NULL}}
+  if (!"accessRights" %in% names(my_occs_gbif)) my_occs_gbif$accessRights <- NA_character_
+  if (!"bibliographicCitation" %in% names(my_occs_gbif)) my_occs_gbif$bibliographicCitation <- NA_character_
 
-  my_occs_gbif <- data.frame(my_occs_gbif)
-  my_occs_gbif <- my_occs_gbif[,c("scientificName","lon","lat","year","month","day","accessRights","bibliographicCitation")]
-  names(my_occs_gbif) <- c("scientificName","Lon","Lat","year","month","day","accessRights","bibliographicCitation")
-  if(nrow(my_occs_gbif) == 0 ) { my_occs_gbif <- NULL}
+  if (isTRUE(getCitation) && "datasetKey" %in% names(my_occs_gbif)) {
+    for (datasetKey in unique(my_occs_gbif$datasetKey)) {
+      z.Res <- tryCatch(rgbif::gbif_citation(x = datasetKey), error = function(e) NULL)
+      if (is.null(z.Res)) next
+      rows <- my_occs_gbif$datasetKey == datasetKey
+      my_occs_gbif$accessRights[rows] <- if (!is.null(z.Res$rights)) z.Res$rights else ""
+      citation <- z.Res$citation$citation
+      if (!is.null(citation)) my_occs_gbif$bibliographicCitation[rows] <- citation
+    }
+  }
 
+  my_occs_gbif <- .occurrenceTable(my_occs_gbif, c("lon", "decimalLongitude"), c("lat", "decimalLatitude"))
   cat("Data downloaded from GBIF\n")
   cat("Taxa: ", taxa, "\n")
   cat("Number of records: ", nrow(my_occs_gbif), "\n")
-
-  return(my_occs_gbif)
+  my_occs_gbif
 
 }
-

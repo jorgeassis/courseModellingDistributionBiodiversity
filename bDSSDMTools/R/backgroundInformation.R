@@ -4,9 +4,12 @@
 #' within the spatial extent defined by the input raster layers. The first layer
 #' of the input SpatRaster is used as the template for identifying valid sampling locations.
 #'
+#' @param rasterLayers A terra `SpatRaster`. The first layer supplies the cells
+#'   that can be sampled.
+#' @param n Number of background points to return. Fewer are returned when the
+#'   raster has fewer non-NA cells.
 #' @export
-#' @importFrom terra SpatRaster SpatVector crs values xyFromCell vect ncell `[` subset `names<-` units `units<-` wrap unwrap deepcopy `ext<-` ext maths Compare Logic Arith `Arith,SpatRaster,SpatRaster-method` `Arith,SpatRaster,numeric-method` `Arith,numeric,SpatRaster-method` `Compare,SpatRaster,numeric-method` `Compare,SpatRaster,SpatRaster-method` `Compare,numeric,SpatRaster-method` `Logic,SpatRaster,logical-method` `Logic,SpatRaster,SpatRaster-method` `Logic,!SpatRaster-method` subset extract `subset,SpatRaster,numeric-method` `subset,SpatRaster,missing-method` `extract,SpatRaster,SpatVector-method` `extract,SpatRaster,matrix-method` `is.na,SpatRaster-method` `anyNA,SpatRaster-method`
-#' @importFrom methods is
+#' @importFrom terra values xyFromCell vect
 #'
 
 backgroundInformation <- function(rasterLayers,n=10000) {

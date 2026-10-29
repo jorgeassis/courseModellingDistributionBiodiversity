@@ -1,24 +1,48 @@
 #' Generate Training, Validation, and Test Datasets for SDM
 #'
-#' splitting data into train/validation/test sets using either random folds or
-#' spatial blocks, optionally creating multiple data replicates by re-sampling
-#' absences (useful when presence data is scarce), extracting environmental
-#' predictor values, and generating plots of the data splits.
+#' Presences are split into training, validation, and test sets, either at
+#' random or by spatial blocks. Absences are then drawn inside each set.
+#' Validation and test keep `paRatio` absences per presence. Training keeps
+#' that ratio as well, and at least `paMinimum` absences, so a large MaxEnt
+#' background does not unbalance the performance sets. Each bootstrap round
+#' draws a new absence sample. Environmental values are extracted for the
+#' records that remain, and the splits are plotted.
 #'
+#' @param records A terra `SpatVector` of points with a numeric `PA` column.
+#'   Presences are `1` and absences are `0`.
+#' @param environmentalLayers A terra `SpatRaster` of predictor layers.
+#' @param method `"random"` gives each record its own group. `"blocks"` uses
+#'   `blockCV` squares whose side is `sacDist` kilometres.
+#' @param proportionTrain Share of presences placed in the training set.
+#'   Absences are drawn afterwards from within each set.
+#' @param proportionTest Share of presences placed in the test set.
+#' @param proportionVal Share of presences placed in the validation set. The three
+#'   proportions must sum to 1.
+#' @param bootstrapRounds Number of absence resamples. Each round becomes one
+#'   `bootstrap` in the returned table.
+#' @param paMinimum Minimum number of absences in the training set. Training
+#'   keeps at least this many, and at least `paRatio` absences for each
+#'   training presence. Use a large value, such as `10000`, for MaxEnt.
+#'   Validation and test do not use this minimum.
+#' @param paRatio Absences kept for each presence in the validation and test
+#'   sets. Training uses the same ratio unless `paMinimum` asks for more. If a
+#'   set does not contain enough absences, every absence in that set is kept.
+#' @param sacDist Block side in kilometres, used when `method` is `"blocks"`.
 #' @export
-#' @importFrom terra SpatRaster SpatVector extract nlyr values `values<-` nrow ncol ncell subset crs `crs<-` ext rast project vect as.data.frame classify mask rasterize buffer trim complete.cases init xyFromCell relate is.related centroids geomtype `geomtype<-` `names<-` units `units<-` wrap unwrap deepcopy `ext<-` maths Compare Logic Arith `Arith,SpatRaster,SpatRaster-method` `Arith,SpatRaster,numeric-method` `Arith,numeric,SpatRaster-method` `Compare,SpatRaster,numeric-method` `Compare,SpatRaster,SpatRaster-method` `Compare,numeric,SpatRaster-method` `Logic,SpatRaster,logical-method` `Logic,SpatRaster,SpatRaster-method` `Logic,!SpatRaster-method` `subset,SpatRaster,numeric-method` `subset,SpatRaster,missing-method` `extract,SpatRaster,SpatVector-method` `extract,SpatRaster,matrix-method` `is.na,SpatRaster-method` `anyNA,SpatRaster-method`
-#' @importFrom stats complete.cases kmeans dist sd na.omit quantile glm binomial lm AIC var
+#' @importFrom stats complete.cases reshape
 #' @importFrom blockCV cv_spatial
 #' @importFrom tidyterra geom_spatvector
-#' @importFrom ggplot2 ggplot coord_sf aes geom_point scale_color_manual labs theme_minimal coord_equal theme element_rect element_blank ggplotGrob is_ggplot
+#' @importFrom ggplot2 ggplot aes geom_point scale_color_manual labs theme_minimal theme element_rect element_blank coord_sf
 #' @importFrom cowplot plot_grid
-#' @importFrom methods is
-#' @importFrom grid is.grob zeroGrob # Needed by internal get_plot_legend
 #'
 
 generateModelData <- function(records, environmentalLayers, method="random", proportionTrain=0.7, proportionTest=0.15, proportionVal=0.15, bootstrapRounds = 6, paMinimum=100, paRatio=1, sacDist=NULL ) {
 
-  split_f <- function(data,target) {
+  split_f <- function(data, target, setName) {
+    if (nrow(data) == 0) {
+      warning("No absences are available for the ", setName, " set; ", target, " were requested.")
+      return(data)
+    }
     split_data <- split(data, data$membership)
     ranked_list <- lapply(split_data, function(group) {
       shuffled_group <- group[sample(nrow(group)), , drop = FALSE]
@@ -31,13 +55,52 @@ generateModelData <- function(records, environmentalLayers, method="random", pro
 
     ranked_df <- ranked_df[sample(nrow(ranked_df)), , drop = FALSE]
     sorted_df <- ranked_df[order(ranked_df$draw_rank), , drop = FALSE]
-    final_sample <- sorted_df[1:target, , drop = FALSE]
-    final_sample <- final_sample[, -which(names(final_sample) %in% c("draw_rank"))]
+    if (target > nrow(sorted_df)) {
+      warning("Only ", nrow(sorted_df), " absences are available for the ", setName, " set; ", target, " were requested. All absences were kept.")
+      target <- nrow(sorted_df)
+    }
+    final_sample <- sorted_df[seq_len(target), , drop = FALSE]
+    final_sample <- final_sample[, -which(names(final_sample) %in% c("draw_rank")), drop = FALSE]
     return(final_sample)
+  }
+
+  cutMemberships <- function(points) {
+    if (nrow(points) < 3) return(NULL)
+    grouped <- split(points, points$membership)
+    grouped <- lapply(grouped, function(group) group[sample(nrow(group)), , drop = FALSE])
+    grouped <- grouped[sample(length(grouped))]
+    ordered <- do.call(rbind, grouped)
+    v <- ordered$membership
+
+    target_idx <- floor(length(v) * proportionTrain)
+    if (target_idx < 1) return(NULL)
+    boundary_id <- v[target_idx]
+    actual_cut_idx <- max(which(v == boundary_id))
+    if (!is.finite(actual_cut_idx) || actual_cut_idx < 1 || actual_cut_idx >= length(v)) return(NULL)
+    train.id <- unique(v[seq_len(actual_cut_idx)])
+
+    rest <- v[(actual_cut_idx + 1):length(v)]
+    target_idx <- floor(length(v) * proportionTest)
+    if (length(rest) == 0 || target_idx < 1) return(NULL)
+    boundary_id <- rest[min(length(rest), target_idx)]
+    actual_cut_idx <- max(which(rest == boundary_id))
+    if (!is.finite(actual_cut_idx) || actual_cut_idx < 1 || actual_cut_idx >= length(rest)) return(NULL)
+    test.id <- unique(rest[seq_len(actual_cut_idx)])
+    val.id <- unique(rest[!rest %in% test.id])
+    if (length(train.id) == 0 || length(test.id) == 0 || length(val.id) == 0) return(NULL)
+    if (length(intersect(train.id, test.id)) > 0 || length(intersect(train.id, val.id)) > 0 || length(intersect(test.id, val.id)) > 0) {
+      return(NULL)
+    }
+    list(train = train.id, test = test.id, validation = val.id)
   }
 
   if(! "PA" %in% names(records)) { stop("Error :: Records must contain a column named 'PA'") }
   if( class(environmentalLayers)[1] != "SpatRaster") { stop("Error :: environmentalLayers must be a SpatRaster object") }
+  layerNames <- names(environmentalLayers)
+  spacedNames <- layerNames[grepl(" ", layerNames)]
+  if (length(spacedNames) > 0) {
+    stop("Error :: raster layer names cannot have spaces: ", paste(spacedNames, collapse = ", "))
+  }
   if( class(records)[1] != "SpatVector") { stop("Error :: records must be a SpatVector object") }
   if (method != "blocks" & method != "random") { stop("Error :: method must be 'blocks' or 'random'") }
 
@@ -45,7 +108,7 @@ generateModelData <- function(records, environmentalLayers, method="random", pro
 
   records <- data.frame(PA=records$PA,terra::extract(environmentalLayers, records, xy=TRUE)[,c("x","y")])
   records <- records[!duplicated(records),]
-  records <- vect(records, geom=c("x","y"), crs=crs(environmentalLayers[[1]]))
+  records <- terra::vect(records, geom=c("x","y"), crs=terra::crs(environmentalLayers[[1]]))
 
   initRecords <- nrow(records)
   recordsData <- which(complete.cases(terra::extract(environmentalLayers,records)))
@@ -56,6 +119,12 @@ generateModelData <- function(records, environmentalLayers, method="random", pro
   if( nrow(records) == 0 ) { stop("Error :: No records available") }
 
   if( proportionTrain + proportionTest + proportionVal != 1 ) { stop("Error :: The sum of the proportions must be equal to 1") }
+  if( !is.numeric(paRatio) || length(paRatio) != 1 || !is.finite(paRatio) || paRatio <= 0 ) {
+    stop("Error :: paRatio must be a positive number")
+  }
+  if( !is.numeric(paMinimum) || length(paMinimum) != 1 || !is.finite(paMinimum) || paMinimum < 1 ) {
+    stop("Error :: paMinimum must be at least 1")
+  }
 
   initRecords <- nrow(records)
   rep <- 1:bootstrapRounds
@@ -63,7 +132,7 @@ generateModelData <- function(records, environmentalLayers, method="random", pro
   if(method == "blocks") {
 
     records.i <- records
-    crs(records.i) <- crs(environmentalLayers[[1]])
+    terra::crs(records.i) <- terra::crs(environmentalLayers[[1]])
 
     blocks <- blockCV::cv_spatial(x = records.i,
                                   r = environmentalLayers[[1]], # optionally add a raster layer
@@ -73,11 +142,34 @@ generateModelData <- function(records, environmentalLayers, method="random", pro
                                   progress = FALSE, # turn off progress bar for vignette
                                   biomod2 = TRUE, report=FALSE, plot=FALSE)
 
-    blocks <- vect(blocks$blocks)
+    blocks <- terra::vect(blocks$blocks)
 
-    recordsFolds <- data.frame( PA= as.data.frame(records.i)[,"PA"],
-                                Lon = geom(records.i)[,c("x")] , Lat = geom(records.i)[,c("y")] ,
-                                membership = terra::extract(blocks, records.i)[,"block_id"][which(!duplicated(terra::extract(blocks, records.i)[,"id.y"]))])
+    extracted <- terra::extract(blocks, records.i)
+    idCol <- if ("id.y" %in% names(extracted)) "id.y" else if ("ID" %in% names(extracted)) "ID" else NA_character_
+    if (is.na(idCol) || !"block_id" %in% names(extracted)) {
+      stop("Error :: spatial blocks did not return a block id for each record")
+    }
+    coords <- terra::crds(records.i)
+    membership <- rep(NA_integer_, nrow(records.i))
+    if (nrow(extracted) > 0) {
+      first <- !duplicated(extracted[[idCol]])
+      idx <- extracted[[idCol]][first]
+      ok <- !is.na(idx) & idx >= 1 & idx <= length(membership)
+      membership[idx[ok]] <- extracted$block_id[first][ok]
+    }
+    outside <- sum(is.na(membership))
+    if (outside > 0) {
+      cat("Warning :: ", outside, " records were removed because they fall outside spatial blocks\n")
+    }
+    keep <- which(!is.na(membership))
+    if (length(keep) == 0) stop("Error :: no records fall inside spatial blocks")
+
+    recordsFolds <- data.frame(
+      PA = as.data.frame(records.i)[keep, "PA"],
+      Lon = coords[keep, 1],
+      Lat = coords[keep, 2],
+      membership = membership[keep]
+    )
 
   }
 
@@ -92,49 +184,64 @@ generateModelData <- function(records, environmentalLayers, method="random", pro
 
   modelData <- data.frame()
   paRep <- 1
+  splitAttempts <- 0
 
   while( paRep <= max(rep) ) {
 
-    recordsFolds.p <- recordsFolds[recordsFolds$PA == 1,]
-    recordsFolds.a <- recordsFolds[recordsFolds$PA == 0,]
-    if( nrow(recordsFolds.p) < paMinimum ) {
-      recordsFolds.a <- split_f(recordsFolds.a, target=paMinimum )
-    } else { recordsFolds.a <- split_f(recordsFolds.a, target=nrow(recordsFolds.p) ) }
-    recordsFolds.r <- rbind(recordsFolds.p, recordsFolds.a)
+    splitAttempts <- splitAttempts + 1
+    if (splitAttempts > bootstrapRounds * 25) {
+      stop("Error :: could not build mutually exclusive train, validation, and test sets")
+    }
 
-    recordsFolds.r <- split(recordsFolds.r, recordsFolds.r$membership)
-    recordsFolds.r <- lapply(recordsFolds.r, function(group) {
-      shuffled_group <- group[sample(nrow(group)), , drop = FALSE]
-      return(shuffled_group)
-    })
-    recordsFolds.r <- recordsFolds.r[sample(length(recordsFolds.r))]
-    recordsFolds.r <- do.call(rbind, recordsFolds.r)
+    recordsFolds.p <- recordsFolds[recordsFolds$PA == 1, , drop = FALSE]
+    recordsFolds.a <- recordsFolds[recordsFolds$PA == 0, , drop = FALSE]
+    if (nrow(recordsFolds.p) == 0) stop("Error :: no presence records")
+    if (nrow(recordsFolds.a) == 0) stop("Error :: no absence records")
 
-    v <- recordsFolds.r$membership
-    target_idx <- floor(length(v) * proportionTrain)
-    boundary_id <- v[target_idx]
-    actual_cut_idx <- max(which(v == boundary_id))
-    train.id <- v[1:actual_cut_idx]
+    sets <- cutMemberships(recordsFolds.p)
+    if (is.null(sets)) next
 
-    v <- recordsFolds.r$membership[(actual_cut_idx+1):length(recordsFolds.r$membership)]
-    target_idx <- floor(length(recordsFolds.r$membership) * proportionTest)
-    boundary_id <- v[min(c(length(v),target_idx))]
-    actual_cut_idx <- max(which(v == boundary_id))
-    test.id <- v[1:actual_cut_idx]
+    if (method == "blocks") {
+      absenceOnly <- recordsFolds.a[!recordsFolds.a$membership %in% unique(recordsFolds.p$membership), , drop = FALSE]
+      if (nrow(absenceOnly) > 0) {
+        extra <- cutMemberships(absenceOnly)
+        if (is.null(extra)) {
+          sets$train <- c(sets$train, unique(absenceOnly$membership))
+        } else {
+          sets$train <- c(sets$train, extra$train)
+          sets$test <- c(sets$test, extra$test)
+          sets$validation <- c(sets$validation, extra$validation)
+        }
+      }
+    }
 
-    val.id <- recordsFolds.r$membership[ ! recordsFolds.r$membership %in% c(train.id,test.id) ]
+    presTrain <- recordsFolds.p[recordsFolds.p$membership %in% sets$train, , drop = FALSE]
+    presVal <- recordsFolds.p[recordsFolds.p$membership %in% sets$validation, , drop = FALSE]
+    presTest <- recordsFolds.p[recordsFolds.p$membership %in% sets$test, , drop = FALSE]
+    if (nrow(presTrain) == 0 || nrow(presVal) == 0 || nrow(presTest) == 0) next
 
-    if( sum(train.id %in% test.id) > 0) { stop("Error :: Train and test sets are not mutually exclusive") }
-    if( sum(train.id %in% val.id) > 0) { stop("Error :: Train and validation sets are not mutually exclusive") }
-    if( sum(test.id %in% val.id) > 0) { stop("Error :: Test and validation sets are not mutually exclusive") }
+    if (method == "random") {
+      pool <- recordsFolds.a
+      absTest <- split_f(pool, max(1, round(nrow(presTest) * paRatio)), "test")
+      pool <- pool[!pool$membership %in% absTest$membership, , drop = FALSE]
+      absVal <- split_f(pool, max(1, round(nrow(presVal) * paRatio)), "validation")
+      pool <- pool[!pool$membership %in% absVal$membership, , drop = FALSE]
+      absTrain <- split_f(pool, max(1, round(nrow(presTrain) * paRatio), paMinimum), "train")
+    } else {
+      absencesIn <- function(ids) recordsFolds.a[recordsFolds.a$membership %in% ids, , drop = FALSE]
+      absTest <- split_f(absencesIn(sets$test), max(1, round(nrow(presTest) * paRatio)), "test")
+      absVal <- split_f(absencesIn(sets$validation), max(1, round(nrow(presVal) * paRatio)), "validation")
+      absTrain <- split_f(absencesIn(sets$train), max(1, round(nrow(presTrain) * paRatio), paMinimum), "train")
+    }
+    if (nrow(absTrain) == 0 || nrow(absVal) == 0 || nrow(absTest) == 0) next
 
-    if( length(train.id) == 0 | length(test.id) == 0 | length(val.id) == 0 ) { next }
+    modelData.train <- data.frame(bootstrap = paRep, Set = "train", rbind(presTrain, absTrain))
+    modelData.val <- data.frame(bootstrap = paRep, Set = "validation", rbind(presVal, absVal))
+    modelData.test <- data.frame(bootstrap = paRep, Set = "test", rbind(presTest, absTest))
 
-    modelData.train <- data.frame( bootstrap=paRep, Set="train", recordsFolds.r[which(recordsFolds.r$membership %in% train.id),] )
-    modelData.val <- data.frame( bootstrap=paRep, Set="validation", recordsFolds.r[which(recordsFolds.r$membership %in% val.id),] )
-    modelData.test <- data.frame( bootstrap=paRep, Set="test", recordsFolds.r[which(recordsFolds.r$membership %in% test.id),] )
-
-    if( sum(modelData.train$membership %in% modelData.test$membership) > 0) { stop("Error :: Train and test sets are not mutually exclusive") }
+    if (sum(modelData.train$membership %in% modelData.test$membership) > 0) stop("Error :: Train and test sets are not mutually exclusive")
+    if (sum(modelData.train$membership %in% modelData.val$membership) > 0) stop("Error :: Train and validation sets are not mutually exclusive")
+    if (sum(modelData.test$membership %in% modelData.val$membership) > 0) stop("Error :: Test and validation sets are not mutually exclusive")
 
     modelData <- rbind(modelData, modelData.train, modelData.val, modelData.test)
 
@@ -199,7 +306,7 @@ generateModelData <- function(records, environmentalLayers, method="random", pro
   plot <- cowplot::plot_grid(plotlist = plots, ncol = 3)
   plot2 <- cowplot::plot_grid(plot, legendPlot, ncol = 1, rel_heights = c(1, 0.1))
 
-  modelData <- vect(modelData, geom=c("Lon","Lat"))
+  modelData <- terra::vect(modelData, geom=c("Lon","Lat"))
   modelData <- data.frame(modelData, terra::extract(environmentalLayers, modelData, ID=FALSE))
   modelData <- modelData[complete.cases(modelData),]
   modelData <- modelData[, -which(names(modelData) %in% c("membership"))]

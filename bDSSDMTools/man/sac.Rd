@@ -13,32 +13,37 @@ sac(
 )
 }
 \arguments{
-\item{environmentalLayers}{A \code{SpatRaster} object (from \code{terra})
-containing environmental predictor layers.}
+\item{environmentalLayers}{A terra \code{SpatRaster} in longitude-latitude
+coordinates, with one or more predictor layers.}
 
-\item{num_sample}{An integer specifying the number of random spatial points to
-sample for calculating the empirical variogram. Default is 10000.}
+\item{num_sample}{Number of cells to sample. Defaults to 2500.}
+
+\item{autocorrelationClassDistance}{Width of each distance class, in
+kilometres. Defaults to 10.}
+
+\item{autocorrelationMaxDistance}{Largest distance tested, in kilometres.
+A predictor whose correlation never becomes non-significant is given this
+range. Defaults to 500.}
+
+\item{autocorrelationSignif}{Significance level used to decide that the
+correlation within a distance class is no longer significant. Defaults
+to 0.05.}
 }
 \value{
 A list with:
-\describe{
-\item{plot}{A \code{ggplot} object showing spatial autocorrelation ranges per variable.}
-\item{distance}{A numeric value representing the suggested block size (in km).}
-}
+\item{plot}{A ggplot of the range of each predictor and the mean block size.}
+\item{distance}{Suggested block size in kilometres, the mean of the predictor ranges.}
 }
 \description{
-Computes spatial autocorrelation ranges for a set of environmental predictors
-using empirical variograms and theoretical spherical model fitting. The function
-summarizes the estimated autocorrelation range (in km) for each variable, and produces
-a diagnostic plot showing the range per variable alongside the selected block size.
+Estimates the distance at which each environmental predictor is no longer
+spatially autocorrelated, and suggests a block size for spatial
+cross-validation. A random sample of cells is drawn from longitude-latitude
+layers. Within geographic distance classes, the correlation between
+geographic distance and environmental difference is tested. The range of a
+predictor is the first class, in kilometres, whose correlation is no longer
+significant.
 }
 \details{
-The function:
-\itemize{
-\item Generates 5 random 10x10 degree geographic subsets (crops) across the overall spatial extent.
-\item Iteratively computes spatial autocorrelation ranges (in km) for each predictor layer within each crop using \code{gstat}.
-\item Extracts the minimum estimated range across the 5 random iterations for each variable to represent a conservative spatial scale.
-\item Caps extreme autocorrelation ranges at 500 km.
-\item Defines the final recommended block size as the overall mean of these capped ranges.
-}
+The sampling uses a fixed seed internally and restores the session random
+seed afterwards.
 }

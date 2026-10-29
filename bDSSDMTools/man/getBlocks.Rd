@@ -6,6 +6,23 @@
 \usage{
 getBlocks(records, kFolds)
 }
+\arguments{
+\item{records}{A terra \code{SpatVector} of points with a numeric \code{PA} column.
+Presences are \code{1} and absences are \code{0}.}
+
+\item{kFolds}{Number of clusters. Cannot exceed the number of presences.}
+}
+\value{
+A list with one element, \code{blocks}: a data frame with columns \code{PA},
+\code{Lon}, \code{Lat}, and \code{membership}.
+}
 \description{
-Assign Spatial Block Membership using K-Means Clustering
+Clusters presence coordinates with k-means and assigns every absence to the
+nearest cluster. Longitude-latitude coordinates are converted to approximate
+kilometres before distances are calculated. The returned coordinates remain
+longitude and latitude.
+}
+\details{
+The clustering uses a fixed seed internally and restores the session random
+seed afterwards.
 }

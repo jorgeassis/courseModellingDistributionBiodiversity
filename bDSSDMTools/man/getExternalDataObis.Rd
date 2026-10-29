@@ -6,6 +6,16 @@
 \usage{
 getExternalDataObis(taxa, getCitation = TRUE)
 }
+\arguments{
+\item{taxa}{Scientific name, preferably a WoRMS name.}
+
+\item{getCitation}{If \code{TRUE}, add access rights and a bibliographic citation
+for each dataset. Records are still returned when a citation request fails.}
+}
+\value{
+A data frame with scientific name, coordinates, date, access rights,
+and citation. Returns \code{NULL} when OBIS has no matching records.
+}
 \description{
 Fetches species occurrence records from the Ocean Biodiversity Information
 System (OBIS) using the \code{robis} package. Optionally retrieves dataset
