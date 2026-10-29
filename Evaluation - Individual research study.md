@@ -19,7 +19,7 @@ To successfully conduct the individual research study, the students must perform
 - Gather biodiversity data for one or more marine species;
 - Gather environmental data to model the distribution of one or more marine species;
 - Model the distribution of one or more marine species;
-- Write an R Markdown report ([template](https://github.com/jorgeassis/courseModellingDistributionBiodiversity/tree/main/Code%20recipes)) with the following format:
+- Write an R Markdown report ([template]([https://github.com/jorgeassis/courseModellingDistributionBiodiversity/tree/main/Code%20recipes](https://github.com/jorgeassis/courseModellingDistributionBiodiversity/blob/main/Code/markDownTemplate.Rmd))) with the following format:
 	- Abstract: What was done in a nutshell (Max. 250 words); Introduction: Brief statement on what is the problem (Max. 500 words); Methods ([guidelines](https://www.dropbox.com/scl/fi/ugvr3ieu9mbs2anmg8iau/Methods-and-Results.docx?rlkey=ngijvxer634ue2sgadcut0hax&dl=0)): Brief statement on how the problem was solved (Max. 500 words); Code to perform modelling and the main Figures; Results ([guidelines](https://www.dropbox.com/scl/fi/ugvr3ieu9mbs2anmg8iau/Methods-and-Results.docx?rlkey=ngijvxer634ue2sgadcut0hax&dl=0)): Brief statement on what was found out (Max. 500 words); Discussion ([guidelines](https://www.dropbox.com/scl/fi/bl6sdprzl5z8whh7o5kj4/Discussion.docx?rlkey=6xhrk5t8gtr1gso53bp5bz37u&dl=0)): Brief statement on what it means (Max. 250 words); References: Whose work was referred.
 
 To successfully write the report, the students must:

@@ -6,7 +6,7 @@
 
 Students must structure their presentations to mirror a scientific talk.
 
-Up to 8 minutes presentation.
+8 to 10 minutes presentation.
 
 This should include the following distinct sections:
 
