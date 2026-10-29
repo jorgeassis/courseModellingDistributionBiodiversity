@@ -1,6 +1,5 @@
----
-notion-id: 34b451df-b233-80ba-8b3f-ef219f7ab92c
----
+# Individual research study
+
 (60% of the grade A-F; to be submitted on **November 16th 2pm**)
 
 **Important note:** *The submission is to be conducted in WISEflow.*

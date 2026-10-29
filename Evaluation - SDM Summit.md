@@ -1,6 +1,5 @@
----
-notion-id: 344451df-b233-8098-82f4-d658f3e77085
----
+# SDM summit
+
 (40% of the grade A-F; online on **November 16th 9am**).
 
 ### **The Presentation Structure**
